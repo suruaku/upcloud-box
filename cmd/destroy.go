@@ -24,7 +24,8 @@ var destroyCmd = &cobra.Command{
 		s, err := state.Load(state.DefaultPath)
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
-				fmt.Printf("No state file found at %s; nothing to destroy\n", state.DefaultPath)
+				fmt.Println("Nothing to destroy")
+				logVerbose("destroy skipped: state file %s does not exist", state.DefaultPath)
 				return nil
 			}
 			return wrapUserError("load state", err)
@@ -32,7 +33,8 @@ var destroyCmd = &cobra.Command{
 
 		serverID := strings.TrimSpace(s.ServerUUID)
 		if serverID == "" {
-			fmt.Println("No tracked server in state; nothing to destroy")
+			fmt.Println("Nothing to destroy")
+			logVerbose("destroy skipped: no tracked server in %s", state.DefaultPath)
 			return nil
 		}
 
@@ -42,7 +44,7 @@ var destroyCmd = &cobra.Command{
 				return wrapUserError("confirm destroy", err)
 			}
 			if !confirmed {
-				fmt.Println("Destroy cancelled")
+				fmt.Println("Cancelled")
 				return nil
 			}
 		}
@@ -52,16 +54,15 @@ var destroyCmd = &cobra.Command{
 			return wrapUserError("initialize provider", err)
 		}
 
-		if err := runStep("Destroying server on UpCloud...", "Destroy request completed", func() error {
+		fmt.Println("Destroying infrastructure...")
+		if err := runStep("Destroying server on UpCloud...", destroyDoneMessage("Destroy request completed"), func() error {
 			return provider.Destroy(context.Background(), serverID)
 		}); err != nil {
 			if isLikelyNotFound(err) {
-				fmt.Printf("Server %s already missing; cleaning local state\n", serverID)
+				logVerbose("destroy skipped remotely: server %s already missing", serverID)
 			} else {
 				return wrapUserError("destroy server", err)
 			}
-		} else {
-			fmt.Printf("Removed server %s\n", serverID)
 		}
 
 		s.ServerUUID = ""
@@ -70,7 +71,8 @@ var destroyCmd = &cobra.Command{
 			return wrapUserError("save state", err)
 		}
 
-		fmt.Printf("State updated: cleared server_uuid and public_ip in %s\n", state.DefaultPath)
+		logVerbose("state updated: cleared server_uuid and public_ip in %s", state.DefaultPath)
+		fmt.Println("Infrastructure removed")
 		return nil
 	},
 }
@@ -89,4 +91,11 @@ func confirmDestroy(serverID string) (bool, error) {
 	}
 	answer := strings.ToLower(strings.TrimSpace(line))
 	return answer == "y" || answer == "yes", nil
+}
+
+func destroyDoneMessage(message string) string {
+	if verbose {
+		return message
+	}
+	return ""
 }

@@ -32,13 +32,8 @@ var upCmd = &cobra.Command{
 		}
 
 		if bootstrap.ConfigCreated {
-			fmt.Printf("Up: config %s not found, generated it with defaults\n", cfgFile)
-			if bootstrap.CloudInitCreated {
-				fmt.Printf("Up: generated %s\n", bootstrap.CloudInitPath)
-			} else {
-				fmt.Printf("Up: using existing %s\n", bootstrap.CloudInitPath)
-			}
-			fmt.Println("Up: continuing with generated defaults; edit config and rerun later if needed")
+			fmt.Printf("Up: initialized defaults (%s, %s)\n", cfgFile, bootstrap.CloudInitPath)
+			logVerbose("bootstrap details: config_created=%t cloud_init_created=%t cloud_init_path=%s", bootstrap.ConfigCreated, bootstrap.CloudInitCreated, bootstrap.CloudInitPath)
 		}
 
 		s, err := loadOrInitState(state.DefaultPath)
@@ -47,27 +42,28 @@ var upCmd = &cobra.Command{
 		}
 
 		if strings.TrimSpace(s.ServerUUID) == "" {
-			fmt.Println("Up: no server tracked, provisioning first...")
+			logVerbose("up flow: no tracked server, provisioning")
 			if err := runProvisionFlow(cfg, s, upWaitTimeout); err != nil {
 				return wrapUserError("provision flow", err)
 			}
 		} else {
-			fmt.Println("Up: server already tracked, checking state...")
+			logVerbose("up flow: tracked server exists, checking state")
 			if err := repairTrackedServerState(s, upWaitTimeout); err != nil {
 				return wrapUserError("repair tracked state", err)
 			}
 			if strings.TrimSpace(s.ServerUUID) == "" {
-				fmt.Println("Up: tracked server missing remotely, provisioning a fresh server...")
+				logVerbose("up flow: tracked server missing remotely, provisioning fresh server")
 				if err := runProvisionFlow(cfg, s, upWaitTimeout); err != nil {
 					return wrapUserError("provision flow", err)
 				}
 			} else {
-				fmt.Println("Up: server is already provisioned, skipping provision")
+				logVerbose("up flow: tracked server healthy, skipping provision")
 			}
 		}
 
 		if upProvisionOnly {
-			fmt.Println("Up: provision-only mode, skipping deploy")
+			fmt.Println("Infrastructure ready")
+			logVerbose("up flow: provision-only mode, skipping deploy")
 			return nil
 		}
 
@@ -78,7 +74,6 @@ var upCmd = &cobra.Command{
 		if strings.TrimSpace(s.PublicIP) != "" {
 			fmt.Printf("App URL: http://%s/\n", strings.TrimSpace(s.PublicIP))
 		}
-		fmt.Println("Up complete")
 		return nil
 	},
 }
@@ -153,6 +148,9 @@ func init() {
 }
 
 func runProvisionFlow(cfg *config.Config, s *state.State, waitTimeout time.Duration) error {
+	fmt.Println("Provisioning infrastructure...")
+	logVerbose("up flow: provisioning infrastructure with zone=%s plan=%s template=%s hostname=%s", cfg.UpCloud.Zone, cfg.UpCloud.Plan, cfg.UpCloud.Template, cfg.Provision.Hostname)
+
 	cloudInitRaw, err := readCloudInitPassThrough(cfg.Provision.CloudInitPath)
 	if err != nil {
 		return wrapUserError("read cloud-init", err)
@@ -164,7 +162,7 @@ func runProvisionFlow(cfg *config.Config, s *state.State, waitTimeout time.Durat
 	}
 
 	var result infra.ProvisionResult
-	if err := runStep("Provisioning server on UpCloud...", "Server provisioning request accepted", func() error {
+	if err := runStep("Provisioning server on UpCloud...", upDoneMessage("Server provisioning request accepted"), func() error {
 		var stepErr error
 		result, stepErr = provider.Provision(context.Background(), infra.ProvisionRequest{
 			Zone:         cfg.UpCloud.Zone,
@@ -185,7 +183,7 @@ func runProvisionFlow(cfg *config.Config, s *state.State, waitTimeout time.Durat
 	}
 
 	var serverInfo infra.ServerInfo
-	if err := runStep("Waiting for server to become ready...", "Server is started", func() error {
+	if err := runStep("Waiting for server to become ready...", upDoneMessage("Server is started"), func() error {
 		var stepErr error
 		serverInfo, stepErr = provider.WaitReady(context.Background(), result.ServerID, waitTimeout)
 		return stepErr
@@ -198,16 +196,14 @@ func runProvisionFlow(cfg *config.Config, s *state.State, waitTimeout time.Durat
 		return wrapUserError("save state", err)
 	}
 
-	if err := runStep("Running post-provision SSH and Docker checks...", "Post-provision checks passed", func() error {
+	if err := runStep("Running post-provision SSH and Docker checks...", upDoneMessage("Post-provision checks passed"), func() error {
 		return runPostProvisionChecks(cfg, serverInfo.PublicIPv4)
 	}); err != nil {
 		return wrapUserError("post-provision checks", err)
 	}
 
-	fmt.Printf("Provisioned server %s (%s)\n", serverInfo.ServerID, serverInfo.Hostname)
-	if serverInfo.PublicIPv4 != "" {
-		fmt.Printf("Public IPv4: %s\n", serverInfo.PublicIPv4)
-	}
+	logVerbose("up flow: provisioned server_id=%s hostname=%s public_ipv4=%s", serverInfo.ServerID, serverInfo.Hostname, serverInfo.PublicIPv4)
+	fmt.Println("Infrastructure ready")
 	return nil
 }
 
@@ -280,7 +276,7 @@ func runDeployFlow(cfg *config.Config, s *state.State) error {
 	}
 
 	if mode == deployModeCompose && hasLikelySingleDeploySettings(cfg) {
-		fmt.Println("Compose file detected; using compose mode (single-container settings ignored).")
+		logVerbose("compose file detected; using compose mode (single-container settings ignored)")
 	}
 
 	runner, err := sshrunner.NewRunner(sshrunner.Config{
@@ -300,8 +296,8 @@ func runDeployFlow(cfg *config.Config, s *state.State) error {
 	}
 
 	if mode == deployModeCompose {
-		fmt.Println("Up: deploying compose stack...")
-		if err := runStep("Deploying compose stack and running health checks...", "Compose deploy completed successfully", func() error {
+		fmt.Println("Deploying application...")
+		if err := runStep("Deploying compose stack and running health checks...", upDoneMessage("Compose deploy completed successfully"), func() error {
 			return deployer.RunCompose(context.Background(), deployrunner.ComposeRequest{
 				Host:                host,
 				ComposeLocalPath:    composePath,
@@ -322,12 +318,13 @@ func runDeployFlow(cfg *config.Config, s *state.State) error {
 			return wrapUserError("save state", err)
 		}
 
-		fmt.Printf("Deployed compose file %s to %s\n", composeFileName, host)
+		logVerbose("up flow: deployed compose file=%s host=%s", composeFileName, host)
+		fmt.Println("Application deployed")
 		return nil
 	}
 
-	fmt.Println("Up: deploying container...")
-	if err := runStep("Deploying container and running health checks...", "Deploy completed successfully", func() error {
+	fmt.Println("Deploying application...")
+	if err := runStep("Deploying container and running health checks...", upDoneMessage("Deploy completed successfully"), func() error {
 		return deployer.Run(context.Background(), deployrunner.Request{
 			Host:                host,
 			ContainerName:       cfg.Deploy.ContainerName,
@@ -348,6 +345,14 @@ func runDeployFlow(cfg *config.Config, s *state.State) error {
 		return wrapUserError("save state", err)
 	}
 
-	fmt.Printf("Deployed image %s to %s\n", cfg.Deploy.Image, host)
+	logVerbose("up flow: deployed image=%s host=%s", cfg.Deploy.Image, host)
+	fmt.Println("Application deployed")
 	return nil
+}
+
+func upDoneMessage(message string) string {
+	if verbose {
+		return message
+	}
+	return ""
 }
