@@ -29,7 +29,7 @@ var provisionCmd = &cobra.Command{
 			return err
 		}
 
-		cloudInitRaw, err := readCloudInitPassThrough(cfg.Provision.CloudInitPath)
+		cloudInitRaw, err := resolveCloudInitRaw(cfg, cfgFile)
 		if err != nil {
 			return wrapUserError("read cloud-init", err)
 		}
@@ -112,6 +112,24 @@ func readCloudInitPassThrough(path string) ([]byte, error) {
 		return nil, fmt.Errorf("cloud-init file %q is empty", path)
 	}
 	return data, nil
+}
+
+func resolveCloudInitRaw(cfg *config.Config, cfgPath string) ([]byte, error) {
+	if cfg == nil {
+		return nil, fmt.Errorf("config is required")
+	}
+
+	cloudInitPath := strings.TrimSpace(cfg.Provision.CloudInitPath)
+	if cloudInitPath != "" {
+		return readCloudInitPassThrough(cloudInitPath)
+	}
+
+	keys, err := resolveSSHAuthorizedKeys(nil, cfgPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return buildCloudInit(cfg.SSH.User, keys), nil
 }
 
 func loadOrInitState(path string) (*state.State, error) {

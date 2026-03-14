@@ -32,8 +32,8 @@ var upCmd = &cobra.Command{
 		}
 
 		if bootstrap.ConfigCreated {
-			fmt.Printf("Up: initialized defaults (%s, %s)\n", cfgFile, bootstrap.CloudInitPath)
-			logVerbose("bootstrap details: config_created=%t cloud_init_created=%t cloud_init_path=%s", bootstrap.ConfigCreated, bootstrap.CloudInitCreated, bootstrap.CloudInitPath)
+			fmt.Printf("Up: initialized defaults (%s)\n", cfgFile)
+			logVerbose("bootstrap details: config_created=%t", bootstrap.ConfigCreated)
 		}
 
 		s, err := loadOrInitState(state.DefaultPath)
@@ -79,9 +79,7 @@ var upCmd = &cobra.Command{
 }
 
 type upBootstrapResult struct {
-	ConfigCreated    bool
-	CloudInitCreated bool
-	CloudInitPath    string
+	ConfigCreated bool
 }
 
 func loadOrBootstrapConfigForUp(path string) (*config.Config, upBootstrapResult, error) {
@@ -107,38 +105,11 @@ func loadOrBootstrapConfigForUp(path string) (*config.Config, upBootstrapResult,
 }
 
 func bootstrapUpDefaults(path string) (upBootstrapResult, error) {
-	defaultCfg := config.Default()
-	cloudInitPath := strings.TrimSpace(defaultCfg.Provision.CloudInitPath)
-	if cloudInitPath == "" {
-		return upBootstrapResult{}, fmt.Errorf("default cloud-init path is empty")
-	}
-
-	if err := writeConfig(path, cloudInitPath, false); err != nil {
+	if err := writeConfig(path, false, ""); err != nil {
 		return upBootstrapResult{}, err
 	}
 
-	result := upBootstrapResult{
-		ConfigCreated: true,
-		CloudInitPath: cloudInitPath,
-	}
-
-	if _, err := os.Stat(cloudInitPath); err == nil {
-		return result, nil
-	} else if !errors.Is(err, os.ErrNotExist) {
-		return upBootstrapResult{}, fmt.Errorf("check cloud-init file %q: %w", cloudInitPath, err)
-	}
-
-	keys, err := resolveSSHAuthorizedKeys(nil, path)
-	if err != nil {
-		return upBootstrapResult{}, err
-	}
-
-	if err := writeCloudInit(cloudInitPath, defaultCfg.SSH.User, keys, false); err != nil {
-		return upBootstrapResult{}, err
-	}
-
-	result.CloudInitCreated = true
-	return result, nil
+	return upBootstrapResult{ConfigCreated: true}, nil
 }
 
 func init() {
@@ -151,7 +122,7 @@ func runProvisionFlow(cfg *config.Config, s *state.State, waitTimeout time.Durat
 	fmt.Println("Provisioning infrastructure...")
 	logVerbose("up flow: provisioning infrastructure with zone=%s plan=%s template=%s hostname=%s", cfg.UpCloud.Zone, cfg.UpCloud.Plan, cfg.UpCloud.Template, cfg.Provision.Hostname)
 
-	cloudInitRaw, err := readCloudInitPassThrough(cfg.Provision.CloudInitPath)
+	cloudInitRaw, err := resolveCloudInitRaw(cfg, cfgFile)
 	if err != nil {
 		return wrapUserError("read cloud-init", err)
 	}

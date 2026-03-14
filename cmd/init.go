@@ -15,6 +15,7 @@ import (
 
 var initForce bool
 var initUser string
+var initWriteCloudInit bool
 var initCloudInitPath string
 var initSSHKeyPaths []string
 
@@ -22,17 +23,15 @@ var initCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Initialize local project configuration",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		cloudInitPath := strings.TrimSpace(initCloudInitPath)
-		if cloudInitPath == "" {
-			return fmt.Errorf("cloud-init path cannot be empty")
+		cloudInitPath := ""
+		if initWriteCloudInit {
+			cloudInitPath = strings.TrimSpace(initCloudInitPath)
+			if cloudInitPath == "" {
+				return fmt.Errorf("cloud-init path cannot be empty when --write-cloud-init is enabled")
+			}
 		}
 
-		keys, err := resolveSSHAuthorizedKeys(initSSHKeyPaths, cfgFile)
-		if err != nil {
-			return err
-		}
-
-		if err := writeConfig(cfgFile, cloudInitPath, initForce); err != nil {
+		if err := writeConfig(cfgFile, initForce, cloudInitPath); err != nil {
 			return err
 		}
 
@@ -40,28 +39,38 @@ var initCmd = &cobra.Command{
 			return err
 		}
 
-		if err := writeCloudInit(cloudInitPath, initUser, keys, initForce); err != nil {
-			return err
+		if initWriteCloudInit {
+			keys, err := resolveSSHAuthorizedKeys(initSSHKeyPaths, cfgFile)
+			if err != nil {
+				return err
+			}
+
+			if err := writeCloudInit(cloudInitPath, initUser, keys, initForce); err != nil {
+				return err
+			}
 		}
 
 		fmt.Printf("Created %s\n", cfgFile)
 		fmt.Printf("Created %s\n", state.DefaultPath)
-		fmt.Printf("Created %s\n", cloudInitPath)
+		if initWriteCloudInit {
+			fmt.Printf("Created %s\n", cloudInitPath)
+		}
 		fmt.Println("Next: export UPCLOUD_TOKEN, edit your config values, then run upcloud-box provision")
 		return nil
 	},
 }
 
 func init() {
-	defaultCloudInitPath := config.Default().Provision.CloudInitPath
+	const defaultCloudInitPath = "./cloud-init.yaml"
 	initCmd.Flags().BoolVar(&initForce, "force", false, "overwrite existing files")
 	initCmd.Flags().StringVar(&initUser, "user", "ubuntu", "ssh user to create in cloud-init")
+	initCmd.Flags().BoolVar(&initWriteCloudInit, "write-cloud-init", false, "write a cloud-init file and set provision.cloud_init_path")
 	initCmd.Flags().StringVar(&initCloudInitPath, "cloud-init-path", defaultCloudInitPath, "path to generated cloud-init file")
 	initCmd.Flags().StringSliceVar(&initSSHKeyPaths, "ssh-key", nil, "path to public SSH key file (repeatable)")
 	rootCmd.AddCommand(initCmd)
 }
 
-func writeConfig(path string, cloudInitPath string, force bool) error {
+func writeConfig(path string, force bool, cloudInitPath string) error {
 	if err := config.EnsureParentDir(path); err != nil {
 		return err
 	}
@@ -71,7 +80,7 @@ func writeConfig(path string, cloudInitPath string, force bool) error {
 	}
 
 	defaultCfg := config.Default()
-	defaultCfg.Provision.CloudInitPath = cloudInitPath
+	defaultCfg.Provision.CloudInitPath = strings.TrimSpace(cloudInitPath)
 	data, err := config.MarshalYAML(defaultCfg)
 	if err != nil {
 		return err
@@ -93,7 +102,7 @@ func writeCloudInit(path, user string, sshKeys []string, force bool) error {
 		return err
 	}
 
-	data := buildCloudInit(path, user, sshKeys)
+	data := buildCloudInit(user, sshKeys)
 	if err := os.WriteFile(path, data, 0o600); err != nil {
 		return fmt.Errorf("write cloud-init %q: %w", path, err)
 	}
@@ -125,7 +134,7 @@ func resolveSSHAuthorizedKeys(paths []string, cfgPath string) ([]string, error) 
 		return readSSHAuthorizedKeys([]string{autoDetectedPublicPath})
 	}
 
-	return []string{"ssh-ed25519 REPLACE_ME_WITH_A_REAL_PUBLIC_KEY upcloud-box"}, nil
+	return nil, fmt.Errorf("no SSH public key found; pass --ssh-key or create ~/.ssh/id_ed25519.pub, ~/.ssh/id_ecdsa.pub, or ~/.ssh/id_rsa.pub")
 }
 
 func readSSHAuthorizedKeys(paths []string) ([]string, error) {
@@ -199,7 +208,7 @@ func detectDefaultPublicKeyPath() (string, error) {
 	return "", nil
 }
 
-func buildCloudInit(path, user string, sshKeys []string) []byte {
+func buildCloudInit(user string, sshKeys []string) []byte {
 	trimmedUser := strings.TrimSpace(user)
 	if trimmedUser == "" {
 		trimmedUser = "ubuntu"
@@ -264,12 +273,6 @@ func buildCloudInit(path, user string, sshKeys []string) []byte {
 	b.WriteString("  - [sh, -c, \"ufw --force allow 80,443/tcp\"]\n")
 	b.WriteString("  - [sh, -c, \"ufw --force enable\"]\n")
 	b.WriteString("final_message: upcloud-box cloud-init complete\n")
-
-	if len(sshKeys) == 1 && strings.Contains(sshKeys[0], "REPLACE_ME_WITH_A_REAL_PUBLIC_KEY") {
-		b.WriteString("\n")
-		b.WriteString("# NOTE: Replace the placeholder ssh key before provisioning.\n")
-		b.WriteString("# Generated at path: " + path + "\n")
-	}
 
 	return []byte(b.String())
 }

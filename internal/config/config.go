@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -56,6 +57,10 @@ func Load(path string) (*Config, error) {
 		return nil, fmt.Errorf("parse config %q: %w", path, err)
 	}
 
+	if strings.TrimSpace(cfg.Provision.Hostname) == "" {
+		cfg.Provision.Hostname = deriveHostname(cfg.Project)
+	}
+
 	if err := cfg.Validate(); err != nil {
 		return nil, err
 	}
@@ -79,8 +84,6 @@ func (c *Config) Validate() error {
 	require("upcloud.zone", c.UpCloud.Zone)
 	require("upcloud.plan", c.UpCloud.Plan)
 	require("upcloud.template", c.UpCloud.Template)
-	require("provision.cloud_init_path", c.Provision.CloudInitPath)
-	require("provision.hostname", c.Provision.Hostname)
 	require("ssh.user", c.SSH.User)
 	require("deploy.container_name", c.Deploy.ContainerName)
 	require("deploy.image", c.Deploy.Image)
@@ -117,8 +120,8 @@ func Default() Config {
 			Template: "Ubuntu Server 24.04 LTS",
 		},
 		Provision: ProvisionConfig{
-			CloudInitPath: "./cloud-init.yaml",
-			Hostname:      "my-app-prod",
+			CloudInitPath: "",
+			Hostname:      "",
 		},
 		SSH: SSHConfig{
 			User:                  "ubuntu",
@@ -154,4 +157,28 @@ func EnsureParentDir(path string) error {
 		return fmt.Errorf("create parent dir %q: %w", dir, err)
 	}
 	return nil
+}
+
+var invalidHostnameCharPattern = regexp.MustCompile(`[^a-z0-9-]+`)
+
+func deriveHostname(project string) string {
+	base := strings.ToLower(strings.TrimSpace(project))
+	base = invalidHostnameCharPattern.ReplaceAllString(base, "-")
+	base = strings.Trim(base, "-")
+	for strings.Contains(base, "--") {
+		base = strings.ReplaceAll(base, "--", "-")
+	}
+	if base == "" {
+		base = "app"
+	}
+
+	hostname := base + "-prod"
+	if len(hostname) > 63 {
+		hostname = hostname[:63]
+		hostname = strings.Trim(hostname, "-")
+	}
+	if hostname == "" {
+		return "app-prod"
+	}
+	return hostname
 }

@@ -36,19 +36,20 @@ export UPCLOUD_TOKEN="ucat_..."
 upcloud-box up
 ```
 
-On first run, `upcloud-box up` bootstraps `upcloud-box.yaml` automatically (and creates `cloud-init.yaml` if it does not already exist), then continues provisioning/deploy.
+On first run, `upcloud-box up` bootstraps `upcloud-box.yaml` automatically, then continues provisioning/deploy.
 
 SSH key behavior:
 
 - If `ssh.private_key_path` is empty, upcloud-box auto-detects `~/.ssh/id_ed25519`, then `~/.ssh/id_ecdsa`, then `~/.ssh/id_rsa`.
-- `cloud-init.yaml` key material is auto-detected from `.pub` keys in the same order when possible.
+- By default, cloud-init is generated internally (no `cloud-init.yaml` file needed).
+- Internal cloud-init key material is auto-detected from `.pub` keys in the same order.
 - If `ssh.private_key_path` is explicitly set to an invalid path, commands fail fast.
+- If no public SSH key is found, provisioning fails with guidance to pass `--ssh-key` or create a default key.
 
-This creates:
+First run creates:
 
 - `upcloud-box.yaml`
 - `.upcloud-box.state.json`
-- `cloud-init.yaml`
 
 `upcloud-box up` provisions the server if needed, then deploys your Docker stack automatically.
 If no compose file is found, it falls back to single-container settings in `upcloud-box.yaml`.
@@ -69,7 +70,7 @@ This removes the tracked server and clears local infra state.
 
 Core commands:
 
-- `upcloud-box init` - optional manual scaffold for config/state/cloud-init
+- `upcloud-box init` - optional manual scaffold for config/state (`--write-cloud-init` for a cloud-init file)
 - `upcloud-box provision` - create server and persist infra state
 - `upcloud-box deploy` - deploy your Docker stack (or single-container fallback)
 - `upcloud-box up` - provision if needed, then deploy your stack
@@ -86,7 +87,8 @@ Useful flags:
 
 - `initialize provider failed (auth)`: verify `UPCLOUD_TOKEN` is set and valid.
 - `... failed (quota)`: check UpCloud resource limits and selected zone capacity.
-- `post-provision checks failed (ssh)`: confirm `ssh.user` and cloud-init user/key setup match. If `ssh.private_key_path` is empty, upcloud-box auto-detects `~/.ssh/id_ed25519`, then `~/.ssh/id_ecdsa`, then `~/.ssh/id_rsa`; if it is set to an invalid path, the command fails fast.
+- `post-provision checks failed (ssh)`: confirm `ssh.user` and SSH key setup match. If `ssh.private_key_path` is empty, upcloud-box auto-detects `~/.ssh/id_ed25519`, then `~/.ssh/id_ecdsa`, then `~/.ssh/id_rsa`; if it is set to an invalid path, the command fails fast.
+- `read cloud-init failed (validation)`: create a public key at `~/.ssh/id_ed25519.pub` (or `id_ecdsa.pub` / `id_rsa.pub`) or run `upcloud-box init --write-cloud-init --ssh-key <path>`.
 - `deploy container failed (health)`: verify app startup, exposed port mapping, and `deploy.healthcheck_url`.
 - `status` shows server missing: run `upcloud-box up` to reprovision or `upcloud-box destroy --yes` to clean state.
 
