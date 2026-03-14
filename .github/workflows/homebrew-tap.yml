@@ -24,7 +24,20 @@ jobs:
           VERSION="${TAG#v}"
 
           ASSET_NAME="upcloud-box_${TAG}_darwin_arm64.tar.gz"
-          ASSET_DIGEST=$(gh release view "$TAG" --repo "${GITHUB_REPOSITORY}" --json assets --jq ".assets[] | select(.name==\"${ASSET_NAME}\") | .digest")
+
+          ASSET_DIGEST=""
+          for attempt in $(seq 1 30); do
+            ASSET_DIGEST=$(gh release view "$TAG" --repo "${GITHUB_REPOSITORY}" --json assets --jq ".assets[] | select(.name==\"${ASSET_NAME}\") | .digest" 2>/dev/null || true)
+            if [ -n "${ASSET_DIGEST}" ]; then
+              break
+            fi
+
+            if [ "$attempt" -lt 30 ]; then
+              echo "Release asset ${ASSET_NAME} not ready yet (attempt ${attempt}/30), retrying in 10s..."
+              sleep 10
+            fi
+          done
+
           if [ -z "${ASSET_DIGEST}" ]; then
             echo "Missing digest for release asset: ${ASSET_NAME}"
             exit 1
