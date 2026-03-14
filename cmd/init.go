@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/ikox01/upcloud-box/internal/config"
 	"github.com/ikox01/upcloud-box/internal/state"
@@ -12,12 +13,25 @@ import (
 )
 
 var initForce bool
+var initUser string
+var initCloudInitPath string
+var initSSHKeyPaths []string
 
 var initCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Initialize local project configuration",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if err := writeConfig(cfgFile, initForce); err != nil {
+		cloudInitPath := strings.TrimSpace(initCloudInitPath)
+		if cloudInitPath == "" {
+			return fmt.Errorf("cloud-init path cannot be empty")
+		}
+
+		keys, err := resolveSSHAuthorizedKeys(initSSHKeyPaths)
+		if err != nil {
+			return err
+		}
+
+		if err := writeConfig(cfgFile, cloudInitPath, initForce); err != nil {
 			return err
 		}
 
@@ -25,19 +39,28 @@ var initCmd = &cobra.Command{
 			return err
 		}
 
+		if err := writeCloudInit(cloudInitPath, initUser, keys, initForce); err != nil {
+			return err
+		}
+
 		fmt.Printf("Created %s\n", cfgFile)
 		fmt.Printf("Created %s\n", state.DefaultPath)
+		fmt.Printf("Created %s\n", cloudInitPath)
 		fmt.Println("Next: export UPCLOUD_TOKEN, edit your config values, then run upcloud-box provision")
 		return nil
 	},
 }
 
 func init() {
+	defaultCloudInitPath := config.Default().Provision.CloudInitPath
 	initCmd.Flags().BoolVar(&initForce, "force", false, "overwrite existing files")
+	initCmd.Flags().StringVar(&initUser, "user", "ubuntu", "ssh user to create in cloud-init")
+	initCmd.Flags().StringVar(&initCloudInitPath, "cloud-init-path", defaultCloudInitPath, "path to generated cloud-init file")
+	initCmd.Flags().StringSliceVar(&initSSHKeyPaths, "ssh-key", nil, "path to public SSH key file (repeatable)")
 	rootCmd.AddCommand(initCmd)
 }
 
-func writeConfig(path string, force bool) error {
+func writeConfig(path string, cloudInitPath string, force bool) error {
 	if err := config.EnsureParentDir(path); err != nil {
 		return err
 	}
@@ -47,6 +70,7 @@ func writeConfig(path string, force bool) error {
 	}
 
 	defaultCfg := config.Default()
+	defaultCfg.Provision.CloudInitPath = cloudInitPath
 	data, err := config.MarshalYAML(defaultCfg)
 	if err != nil {
 		return err
@@ -57,6 +81,92 @@ func writeConfig(path string, force bool) error {
 	}
 
 	return nil
+}
+
+func writeCloudInit(path, user string, sshKeys []string, force bool) error {
+	if err := config.EnsureParentDir(path); err != nil {
+		return err
+	}
+
+	if err := ensureWritable(path, force); err != nil {
+		return err
+	}
+
+	data := buildCloudInit(path, user, sshKeys)
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		return fmt.Errorf("write cloud-init %q: %w", path, err)
+	}
+
+	return nil
+}
+
+func resolveSSHAuthorizedKeys(paths []string) ([]string, error) {
+	if len(paths) == 0 {
+		return []string{"ssh-ed25519 REPLACE_ME_WITH_A_REAL_PUBLIC_KEY upcloud-box"}, nil
+	}
+
+	keys := make([]string, 0, len(paths))
+	for _, path := range paths {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("read ssh key file %q: %w", path, err)
+		}
+		key := strings.TrimSpace(string(data))
+		if key == "" {
+			return nil, fmt.Errorf("ssh key file %q is empty", path)
+		}
+		keys = append(keys, key)
+	}
+
+	return keys, nil
+}
+
+func buildCloudInit(path, user string, sshKeys []string) []byte {
+	trimmedUser := strings.TrimSpace(user)
+	if trimmedUser == "" {
+		trimmedUser = "ubuntu"
+	}
+
+	var b strings.Builder
+	b.WriteString("#cloud-config\n")
+	b.WriteString("package_update: true\n")
+	b.WriteString("package_upgrade: true\n")
+	b.WriteString("timezone: UTC\n")
+	b.WriteString("ssh_pwauth: false\n")
+	b.WriteString("disable_root: true\n")
+	b.WriteString("users:\n")
+	b.WriteString("  - default\n")
+	b.WriteString("  - name: " + trimmedUser + "\n")
+	b.WriteString("    gecos: Provisioned by upcloud-box\n")
+	b.WriteString("    shell: /bin/bash\n")
+	b.WriteString("    lock_passwd: true\n")
+	b.WriteString("    sudo: ALL=(ALL) NOPASSWD:ALL\n")
+	b.WriteString("    groups: [sudo, docker]\n")
+	b.WriteString("    ssh_authorized_keys:\n")
+	for _, key := range sshKeys {
+		b.WriteString("      - " + key + "\n")
+	}
+	b.WriteString("packages:\n")
+	b.WriteString("  - ca-certificates\n")
+	b.WriteString("  - curl\n")
+	b.WriteString("  - fail2ban\n")
+	b.WriteString("  - ufw\n")
+	b.WriteString("  - docker.io\n")
+	b.WriteString("runcmd:\n")
+	b.WriteString("  - [sh, -c, \"systemctl enable --now docker\"]\n")
+	b.WriteString("  - [sh, -c, \"ufw --force default deny incoming\"]\n")
+	b.WriteString("  - [sh, -c, \"ufw --force default allow outgoing\"]\n")
+	b.WriteString("  - [sh, -c, \"ufw --force allow OpenSSH\"]\n")
+	b.WriteString("  - [sh, -c, \"ufw --force enable\"]\n")
+	b.WriteString("final_message: upcloud-box cloud-init complete\n")
+
+	if len(sshKeys) == 1 && strings.Contains(sshKeys[0], "REPLACE_ME_WITH_A_REAL_PUBLIC_KEY") {
+		b.WriteString("\n")
+		b.WriteString("# NOTE: Replace the placeholder ssh key before provisioning.\n")
+		b.WriteString("# Generated at path: " + path + "\n")
+	}
+
+	return []byte(b.String())
 }
 
 func writeState(path string, force bool) error {

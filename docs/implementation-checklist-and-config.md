@@ -13,7 +13,7 @@ This document locks the v1 implementation plan for a Go + Cobra CLI that provisi
 ### Day 1: Config and state foundation
 - Define config structs and loader with strict validation.
 - Define state structs and read/write helpers for `.upcloud-box.state.json`.
-- Implement `init` to generate a minimal config template.
+- Implement `init` to generate a minimal config template and a default `cloud-init.yaml`.
 - Add clear validation errors (missing credentials, bad port format, missing cloud-init path).
 
 ### Day 2: UpCloud client and provision workflow
@@ -92,6 +92,19 @@ export UPCLOUD_TOKEN="ucat_..."
 ```
 
 The CLI uses `UPCLOUD_TOKEN` for UpCloud API authentication.
+
+## Init Command Defaults
+
+- `upcloud-box init` creates three files: `upcloud-box.yaml`, `.upcloud-box.state.json`, and `cloud-init.yaml`.
+- Generated cloud-init defaults disable password SSH auth, keep root disabled, create one sudo user, and install baseline packages (`ca-certificates`, `curl`, `fail2ban`, `ufw`, `docker.io`).
+- Provide SSH public key files at init time with repeatable `--ssh-key` flags.
+- Override the generated username with `--user` and cloud-init output path with `--cloud-init-path`.
+
+Example:
+
+```bash
+upcloud-box init --ssh-key ~/.ssh/id_ed25519.pub --user deploy
+```
 
 ## Suggested Go Package Layout
 
