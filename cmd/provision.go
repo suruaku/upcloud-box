@@ -9,8 +9,15 @@ import (
 var provisionCmd = &cobra.Command{
 	Use:   "provision",
 	Short: "Provision secure Docker host on UpCloud",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cfg, err := loadConfigOrErr()
+		if err != nil {
+			return err
+		}
+
+		_ = cfg
 		fmt.Println("TODO: provision server using", cfgFile)
+		return nil
 	},
 }
 

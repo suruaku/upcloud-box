@@ -9,8 +9,15 @@ import (
 var statusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "Show infrastructure and app status",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cfg, err := loadConfigOrErr()
+		if err != nil {
+			return err
+		}
+
+		_ = cfg
 		fmt.Println("TODO: show status using", cfgFile)
+		return nil
 	},
 }
 

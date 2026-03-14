@@ -9,8 +9,15 @@ import (
 var destroyCmd = &cobra.Command{
 	Use:   "destroy",
 	Short: "Destroy provisioned resources",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cfg, err := loadConfigOrErr()
+		if err != nil {
+			return err
+		}
+
+		_ = cfg
 		fmt.Println("TODO: destroy resources using", cfgFile)
+		return nil
 	},
 }
 

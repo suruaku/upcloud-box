@@ -9,8 +9,15 @@ import (
 var deployCmd = &cobra.Command{
 	Use:   "deploy",
 	Short: "Deploy single container workload",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cfg, err := loadConfigOrErr()
+		if err != nil {
+			return err
+		}
+
+		_ = cfg
 		fmt.Println("TODO: deploy container using", cfgFile)
+		return nil
 	},
 }
 
