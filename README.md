@@ -31,7 +31,7 @@ export UPCLOUD_TOKEN="ucat_..."
 2) Initialize project files:
 
 ```bash
-upcloud-box init --ssh-key ~/.ssh/id_ed25519.pub --user ubuntu
+upcloud-box init --ssh-key ~/.ssh/id_ed25519.pub
 ```
 
 This creates:
@@ -40,7 +40,7 @@ This creates:
 - `.upcloud-box.state.json`
 - `cloud-init.yaml`
 
-3) Edit config values in `upcloud-box.yaml`.
+3) Put your stack in `docker-compose.yaml` (or `compose.yaml`) in the project root.
 
 4) Run full runtime flow:
 
@@ -48,9 +48,8 @@ This creates:
 upcloud-box up
 ```
 
-If `docker-compose.yaml` or `compose.yaml` exists in the same directory as your config file,
-`upcloud-box up` deploys that compose stack automatically.
-Otherwise it deploys the single-container settings from `upcloud-box.yaml`.
+`upcloud-box up` provisions the server if needed, then deploys your Docker stack automatically.
+If no compose file is found, it falls back to single-container settings in `upcloud-box.yaml`.
 
 5) Inspect status:
 
@@ -64,14 +63,16 @@ upcloud-box status
 upcloud-box destroy --yes
 ```
 
+This removes the tracked server and clears local infra state.
+
 Core commands:
 
 - `upcloud-box init` - scaffold config/state/cloud-init
 - `upcloud-box provision` - create server and persist infra state
-- `upcloud-box deploy` - deploy container settings or detected compose stack
-- `upcloud-box up` - provision if needed, then deploy (auto-detect compose at repo root)
-- `upcloud-box status` - local state + remote infra/container/health summary
-- `upcloud-box destroy` - delete tracked server and clear infra state fields
+- `upcloud-box deploy` - deploy your Docker stack (or single-container fallback)
+- `upcloud-box up` - provision if needed, then deploy your stack
+- `upcloud-box status` - local state + remote infra/app summary
+- `upcloud-box destroy` - remove the server and clean state
 
 Useful flags:
 
