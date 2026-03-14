@@ -114,6 +114,19 @@ func (r *Runner) RunWithRetry(ctx context.Context, host, remoteCommand string, t
 	}
 }
 
+func (r *Runner) Run(ctx context.Context, host, remoteCommand string) (Result, error) {
+	host = strings.TrimSpace(host)
+	if host == "" {
+		return Result{}, fmt.Errorf("ssh host is required")
+	}
+
+	if strings.TrimSpace(remoteCommand) == "" {
+		return Result{}, fmt.Errorf("remote command is required")
+	}
+
+	return r.runOnce(ctx, host, remoteCommand)
+}
+
 func (r *Runner) runOnce(ctx context.Context, host, remoteCommand string) (Result, error) {
 	connectSeconds := int(r.connectTimeout / time.Second)
 	if connectSeconds < 1 {

@@ -1,8 +1,17 @@
 package cmd
 
 import (
+	"context"
+	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
 
+	deployrunner "github.com/ikox01/upcloud-box/internal/deploy"
+	sshrunner "github.com/ikox01/upcloud-box/internal/ssh"
+	"github.com/ikox01/upcloud-box/internal/state"
 	"github.com/spf13/cobra"
 )
 
@@ -15,8 +24,59 @@ var deployCmd = &cobra.Command{
 			return err
 		}
 
-		_ = cfg
-		fmt.Println("TODO: deploy container using", cfgFile)
+		s, err := state.Load(state.DefaultPath)
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				return fmt.Errorf("state file %s not found; run provision first", state.DefaultPath)
+			}
+			return err
+		}
+
+		host := strings.TrimSpace(s.PublicIP)
+		if host == "" {
+			return fmt.Errorf("state has no public_ip; run provision first")
+		}
+		if strings.TrimSpace(s.ServerUUID) == "" {
+			return fmt.Errorf("state has no server_uuid; run provision first")
+		}
+
+		runner, err := sshrunner.NewRunner(sshrunner.Config{
+			User:           cfg.SSH.User,
+			PrivateKeyPath: cfg.SSH.PrivateKeyPath,
+			ConfigDir:      filepath.Dir(cfgFile),
+			ConnectTimeout: time.Duration(cfg.SSH.ConnectTimeoutSeconds) * time.Second,
+			RetryInterval:  3 * time.Second,
+		})
+		if err != nil {
+			return fmt.Errorf("create ssh runner: %w", err)
+		}
+
+		deployer, err := deployrunner.New(runner)
+		if err != nil {
+			return err
+		}
+
+		fmt.Println("Deploy: pulling and replacing container...")
+		if err := deployer.Run(context.Background(), deployrunner.Request{
+			Host:                host,
+			ContainerName:       cfg.Deploy.ContainerName,
+			Image:               cfg.Deploy.Image,
+			Port:                cfg.Deploy.Port,
+			EnvFile:             cfg.Deploy.EnvFile,
+			HealthcheckURL:      cfg.Deploy.HealthcheckURL,
+			HealthcheckTimeout:  time.Duration(cfg.Deploy.HealthcheckTimeoutSecs) * time.Second,
+			HealthcheckInterval: time.Duration(cfg.Deploy.HealthcheckIntervalSecs) * time.Second,
+		}); err != nil {
+			return err
+		}
+
+		s.MarkDeploy(cfg.Deploy.Image, time.Now())
+		if err := state.Save(state.DefaultPath, *s); err != nil {
+			return err
+		}
+
+		fmt.Printf("Deployed image %s to %s\n", cfg.Deploy.Image, host)
+		fmt.Printf("State saved to %s\n", state.DefaultPath)
 		return nil
 	},
 }
