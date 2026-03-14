@@ -236,7 +236,7 @@ func runDeployFlow(cfg *config.Config, s *state.State) error {
 				Host:                host,
 				ComposeLocalPath:    composePath,
 				ComposeFileName:     composeFileName,
-				RemoteDir:           remoteComposeDir(cfg.Project),
+				RemoteDir:           remoteComposeDir(cfg.Project, cfg.SSH.User),
 				HealthcheckURL:      cfg.Deploy.HealthcheckURL,
 				HealthcheckTimeout:  time.Duration(cfg.Deploy.HealthcheckTimeoutSecs) * time.Second,
 				HealthcheckInterval: time.Duration(cfg.Deploy.HealthcheckIntervalSecs) * time.Second,

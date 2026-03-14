@@ -175,7 +175,7 @@ func renderRemoteComposeSummary(runner *sshrunner.Runner, host string, cfg *conf
 		return
 	}
 
-	remoteDir := remoteComposeDir(cfg.Project)
+	remoteDir := remoteComposeDir(cfg.Project, cfg.SSH.User)
 	remoteComposePath := filepath.ToSlash(filepath.Join(remoteDir, composeFileName))
 	cmd := fmt.Sprintf("cd %s && docker compose -f %s ps --format '{{.Service}}|{{.State}}|{{.Health}}'", shellQuote(remoteDir), shellQuote(remoteComposePath))
 	result, err := runner.Run(context.Background(), host, cmd)

@@ -64,8 +64,13 @@ func remoteProjectName(project string) string {
 	return sanitized
 }
 
-func remoteComposeDir(project string) string {
-	return filepath.ToSlash(filepath.Join("/opt/upcloud-box", remoteProjectName(project), "current"))
+func remoteComposeDir(project, sshUser string) string {
+	sshUser = strings.TrimSpace(sshUser)
+	if sshUser == "" {
+		sshUser = "ubuntu"
+	}
+
+	return filepath.ToSlash(filepath.Join("/home", sshUser, ".upcloud-box", remoteProjectName(project), "current"))
 }
 
 func hasLikelySingleDeploySettings(cfg *config.Config) bool {
