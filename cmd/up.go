@@ -25,33 +25,34 @@ var upCmd = &cobra.Command{
 	Use:   "up",
 	Short: "Provision if needed and deploy application",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		logVerbose("starting up flow with config=%s provision-only=%t wait-timeout=%s", cfgFile, upProvisionOnly, upWaitTimeout)
 		cfg, err := config.Load(cfgFile)
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
-				return fmt.Errorf("config %q not found; run `upcloud-box init --ssh-key ~/.ssh/id_ed25519.pub`, edit it, then rerun `upcloud-box up`", cfgFile)
+				return wrapUserError("load config", fmt.Errorf("config %q not found; run `upcloud-box init --ssh-key ~/.ssh/id_ed25519.pub`, edit it, then rerun `upcloud-box up`", cfgFile))
 			}
-			return fmt.Errorf("load config %q: %w", cfgFile, err)
+			return wrapUserError("load config", err)
 		}
 
 		s, err := loadOrInitState(state.DefaultPath)
 		if err != nil {
-			return err
+			return wrapUserError("load state", err)
 		}
 
 		if strings.TrimSpace(s.ServerUUID) == "" {
 			fmt.Println("Up: no server tracked, provisioning first...")
 			if err := runProvisionFlow(cfg, s, upWaitTimeout); err != nil {
-				return err
+				return wrapUserError("provision flow", err)
 			}
 		} else {
 			fmt.Println("Up: server already tracked, checking state...")
 			if err := repairTrackedServerState(s, upWaitTimeout); err != nil {
-				return err
+				return wrapUserError("repair tracked state", err)
 			}
 			if strings.TrimSpace(s.ServerUUID) == "" {
 				fmt.Println("Up: tracked server missing remotely, provisioning a fresh server...")
 				if err := runProvisionFlow(cfg, s, upWaitTimeout); err != nil {
-					return err
+					return wrapUserError("provision flow", err)
 				}
 			} else {
 				fmt.Println("Up: server is already provisioned, skipping provision")
@@ -64,7 +65,7 @@ var upCmd = &cobra.Command{
 		}
 
 		if err := runDeployFlow(cfg, s); err != nil {
-			return err
+			return wrapUserError("deploy flow", err)
 		}
 
 		if strings.TrimSpace(s.PublicIP) != "" {
@@ -84,12 +85,12 @@ func init() {
 func runProvisionFlow(cfg *config.Config, s *state.State, waitTimeout time.Duration) error {
 	cloudInitRaw, err := readCloudInitPassThrough(cfg.Provision.CloudInitPath)
 	if err != nil {
-		return err
+		return wrapUserError("read cloud-init", err)
 	}
 
 	provider, err := factory.NewDefaultProvider()
 	if err != nil {
-		return err
+		return wrapUserError("initialize provider", err)
 	}
 
 	var result infra.ProvisionResult
@@ -104,13 +105,13 @@ func runProvisionFlow(cfg *config.Config, s *state.State, waitTimeout time.Durat
 		})
 		return stepErr
 	}); err != nil {
-		return err
+		return wrapUserError("provision server", err)
 	}
 
 	s.ServerUUID = result.ServerID
 	s.PublicIP = ""
 	if err := state.Save(state.DefaultPath, *s); err != nil {
-		return err
+		return wrapUserError("save state", err)
 	}
 
 	var serverInfo infra.ServerInfo
@@ -119,18 +120,18 @@ func runProvisionFlow(cfg *config.Config, s *state.State, waitTimeout time.Durat
 		serverInfo, stepErr = provider.WaitReady(context.Background(), result.ServerID, waitTimeout)
 		return stepErr
 	}); err != nil {
-		return err
+		return wrapUserError("wait for server readiness", err)
 	}
 
 	s.PublicIP = serverInfo.PublicIPv4
 	if err := state.Save(state.DefaultPath, *s); err != nil {
-		return err
+		return wrapUserError("save state", err)
 	}
 
 	if err := runStep("Running post-provision SSH and Docker checks...", "Post-provision checks passed", func() error {
 		return runPostProvisionChecks(cfg, serverInfo.PublicIPv4)
 	}); err != nil {
-		return err
+		return wrapUserError("post-provision checks", err)
 	}
 
 	fmt.Printf("Provisioned server %s (%s)\n", serverInfo.ServerID, serverInfo.Hostname)
@@ -151,7 +152,7 @@ func repairTrackedServerState(s *state.State, waitTimeout time.Duration) error {
 
 	provider, err := factory.NewDefaultProvider()
 	if err != nil {
-		return err
+		return wrapUserError("initialize provider", err)
 	}
 
 	fmt.Printf("Up: server_uuid %s exists but public_ip is missing, repairing state...\n", s.ServerUUID)
@@ -162,11 +163,11 @@ func repairTrackedServerState(s *state.State, waitTimeout time.Duration) error {
 			s.ServerUUID = ""
 			s.PublicIP = ""
 			if saveErr := state.Save(state.DefaultPath, *s); saveErr != nil {
-				return saveErr
+				return wrapUserError("save state", saveErr)
 			}
 			return nil
 		}
-		return err
+		return wrapUserError("lookup server", err)
 	}
 
 	if strings.TrimSpace(serverInfo.PublicIPv4) == "" {
@@ -176,7 +177,7 @@ func repairTrackedServerState(s *state.State, waitTimeout time.Duration) error {
 			waitInfo, stepErr = provider.WaitReady(context.Background(), s.ServerUUID, waitTimeout)
 			return stepErr
 		}); err != nil {
-			return err
+			return wrapUserError("wait for tracked server", err)
 		}
 		serverInfo = waitInfo
 	}
@@ -187,7 +188,7 @@ func repairTrackedServerState(s *state.State, waitTimeout time.Duration) error {
 
 	s.PublicIP = strings.TrimSpace(serverInfo.PublicIPv4)
 	if err := state.Save(state.DefaultPath, *s); err != nil {
-		return err
+		return wrapUserError("save state", err)
 	}
 
 	fmt.Printf("Up: repaired state with public_ip %s\n", s.PublicIP)
@@ -197,10 +198,10 @@ func repairTrackedServerState(s *state.State, waitTimeout time.Duration) error {
 func runDeployFlow(cfg *config.Config, s *state.State) error {
 	host := strings.TrimSpace(s.PublicIP)
 	if host == "" {
-		return fmt.Errorf("state has no public_ip; run `upcloud-box provision` first")
+		return wrapUserError("validate state", fmt.Errorf("state has no public_ip; run `upcloud-box provision` first"))
 	}
 	if strings.TrimSpace(s.ServerUUID) == "" {
-		return fmt.Errorf("state has no server_uuid; run `upcloud-box provision` first")
+		return wrapUserError("validate state", fmt.Errorf("state has no server_uuid; run `upcloud-box provision` first"))
 	}
 
 	runner, err := sshrunner.NewRunner(sshrunner.Config{
@@ -211,12 +212,12 @@ func runDeployFlow(cfg *config.Config, s *state.State) error {
 		RetryInterval:  3 * time.Second,
 	})
 	if err != nil {
-		return fmt.Errorf("create ssh runner: %w", err)
+		return wrapUserError("create ssh runner", err)
 	}
 
 	deployer, err := deployrunner.New(runner)
 	if err != nil {
-		return err
+		return wrapUserError("initialize deployer", err)
 	}
 
 	fmt.Println("Up: deploying container...")
@@ -232,12 +233,12 @@ func runDeployFlow(cfg *config.Config, s *state.State) error {
 			HealthcheckInterval: time.Duration(cfg.Deploy.HealthcheckIntervalSecs) * time.Second,
 		})
 	}); err != nil {
-		return err
+		return wrapUserError("deploy container", err)
 	}
 
 	s.MarkDeploy(cfg.Deploy.Image, time.Now())
 	if err := state.Save(state.DefaultPath, *s); err != nil {
-		return err
+		return wrapUserError("save state", err)
 	}
 
 	fmt.Printf("Deployed image %s to %s\n", cfg.Deploy.Image, host)

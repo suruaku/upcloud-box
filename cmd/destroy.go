@@ -20,13 +20,14 @@ var destroyCmd = &cobra.Command{
 	Use:   "destroy",
 	Short: "Destroy provisioned resources",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		logVerbose("starting destroy with config=%s", cfgFile)
 		s, err := state.Load(state.DefaultPath)
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
 				fmt.Printf("No state file found at %s; nothing to destroy\n", state.DefaultPath)
 				return nil
 			}
-			return err
+			return wrapUserError("load state", err)
 		}
 
 		serverID := strings.TrimSpace(s.ServerUUID)
@@ -38,7 +39,7 @@ var destroyCmd = &cobra.Command{
 		if !destroyYes {
 			confirmed, err := confirmDestroy(serverID)
 			if err != nil {
-				return err
+				return wrapUserError("confirm destroy", err)
 			}
 			if !confirmed {
 				fmt.Println("Destroy cancelled")
@@ -48,7 +49,7 @@ var destroyCmd = &cobra.Command{
 
 		provider, err := factory.NewDefaultProvider()
 		if err != nil {
-			return err
+			return wrapUserError("initialize provider", err)
 		}
 
 		if err := runStep("Destroying server on UpCloud...", "Destroy request completed", func() error {
@@ -57,7 +58,7 @@ var destroyCmd = &cobra.Command{
 			if isLikelyNotFound(err) {
 				fmt.Printf("Server %s already missing; cleaning local state\n", serverID)
 			} else {
-				return err
+				return wrapUserError("destroy server", err)
 			}
 		} else {
 			fmt.Printf("Removed server %s\n", serverID)
@@ -66,7 +67,7 @@ var destroyCmd = &cobra.Command{
 		s.ServerUUID = ""
 		s.PublicIP = ""
 		if err := state.Save(state.DefaultPath, *s); err != nil {
-			return err
+			return wrapUserError("save state", err)
 		}
 
 		fmt.Printf("State updated: cleared server_uuid and public_ip in %s\n", state.DefaultPath)

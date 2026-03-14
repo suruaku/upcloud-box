@@ -19,6 +19,7 @@ var deployCmd = &cobra.Command{
 	Use:   "deploy",
 	Short: "Deploy single container workload",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		logVerbose("starting deploy with config=%s", cfgFile)
 		cfg, err := loadConfigOrErr()
 		if err != nil {
 			return err
@@ -27,17 +28,17 @@ var deployCmd = &cobra.Command{
 		s, err := state.Load(state.DefaultPath)
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
-				return fmt.Errorf("state file %s not found; run provision first", state.DefaultPath)
+				return wrapUserError("load state", fmt.Errorf("state file %s not found; run provision first", state.DefaultPath))
 			}
-			return err
+			return wrapUserError("load state", err)
 		}
 
 		host := strings.TrimSpace(s.PublicIP)
 		if host == "" {
-			return fmt.Errorf("state has no public_ip; run provision first")
+			return wrapUserError("validate state", fmt.Errorf("state has no public_ip; run provision first"))
 		}
 		if strings.TrimSpace(s.ServerUUID) == "" {
-			return fmt.Errorf("state has no server_uuid; run provision first")
+			return wrapUserError("validate state", fmt.Errorf("state has no server_uuid; run provision first"))
 		}
 
 		runner, err := sshrunner.NewRunner(sshrunner.Config{
@@ -48,12 +49,12 @@ var deployCmd = &cobra.Command{
 			RetryInterval:  3 * time.Second,
 		})
 		if err != nil {
-			return fmt.Errorf("create ssh runner: %w", err)
+			return wrapUserError("create ssh runner", err)
 		}
 
 		deployer, err := deployrunner.New(runner)
 		if err != nil {
-			return err
+			return wrapUserError("initialize deployer", err)
 		}
 
 		if err := runStep("Deploying container and running health checks...", "Deploy completed successfully", func() error {
@@ -68,12 +69,12 @@ var deployCmd = &cobra.Command{
 				HealthcheckInterval: time.Duration(cfg.Deploy.HealthcheckIntervalSecs) * time.Second,
 			})
 		}); err != nil {
-			return err
+			return wrapUserError("deploy container", err)
 		}
 
 		s.MarkDeploy(cfg.Deploy.Image, time.Now())
 		if err := state.Save(state.DefaultPath, *s); err != nil {
-			return err
+			return wrapUserError("save state", err)
 		}
 
 		fmt.Printf("Deployed image %s to %s\n", cfg.Deploy.Image, host)

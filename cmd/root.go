@@ -4,6 +4,7 @@ import "github.com/spf13/cobra"
 
 var cfgFile string
 var noSpinner bool
+var verbose bool
 
 var rootCmd = &cobra.Command{
 	Use:   "upcloud-box",
@@ -18,4 +19,5 @@ func Execute() error {
 func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "upcloud-box.yaml", "config file path")
 	rootCmd.PersistentFlags().BoolVar(&noSpinner, "no-spinner", false, "disable spinner progress output")
+	rootCmd.PersistentFlags().BoolVar(&verbose, "verbose", false, "enable verbose logs and detailed errors")
 }

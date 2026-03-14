@@ -23,6 +23,7 @@ var provisionCmd = &cobra.Command{
 	Use:   "provision",
 	Short: "Provision secure Docker host on UpCloud",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		logVerbose("starting provision with config=%s wait-timeout=%s", cfgFile, provisionWaitTimeout)
 		cfg, err := loadConfigOrErr()
 		if err != nil {
 			return err
@@ -30,20 +31,20 @@ var provisionCmd = &cobra.Command{
 
 		cloudInitRaw, err := readCloudInitPassThrough(cfg.Provision.CloudInitPath)
 		if err != nil {
-			return err
+			return wrapUserError("read cloud-init", err)
 		}
 
 		s, err := loadOrInitState(state.DefaultPath)
 		if err != nil {
-			return err
+			return wrapUserError("load state", err)
 		}
 		if strings.TrimSpace(s.ServerUUID) != "" {
-			return fmt.Errorf("state already has server_uuid %q; destroy it first or clear %s", s.ServerUUID, state.DefaultPath)
+			return wrapUserError("validate state", fmt.Errorf("state already has server_uuid %q; destroy it first or clear %s", s.ServerUUID, state.DefaultPath))
 		}
 
 		provider, err := factory.NewDefaultProvider()
 		if err != nil {
-			return err
+			return wrapUserError("initialize provider", err)
 		}
 
 		var result infra.ProvisionResult
@@ -58,13 +59,13 @@ var provisionCmd = &cobra.Command{
 			})
 			return stepErr
 		}); err != nil {
-			return err
+			return wrapUserError("provision server", err)
 		}
 
 		s.ServerUUID = result.ServerID
 		s.PublicIP = ""
 		if err := state.Save(state.DefaultPath, *s); err != nil {
-			return err
+			return wrapUserError("save state", err)
 		}
 
 		var serverInfo infra.ServerInfo
@@ -73,18 +74,18 @@ var provisionCmd = &cobra.Command{
 			serverInfo, stepErr = provider.WaitReady(context.Background(), result.ServerID, provisionWaitTimeout)
 			return stepErr
 		}); err != nil {
-			return err
+			return wrapUserError("wait for server readiness", err)
 		}
 
 		s.PublicIP = serverInfo.PublicIPv4
 		if err := state.Save(state.DefaultPath, *s); err != nil {
-			return err
+			return wrapUserError("save state", err)
 		}
 
 		if err := runStep("Running post-provision SSH and Docker checks...", "Post-provision checks passed", func() error {
 			return runPostProvisionChecks(cfg, serverInfo.PublicIPv4)
 		}); err != nil {
-			return err
+			return wrapUserError("post-provision checks", err)
 		}
 
 		fmt.Printf("Provisioned server %s (%s)\n", serverInfo.ServerID, serverInfo.Hostname)
