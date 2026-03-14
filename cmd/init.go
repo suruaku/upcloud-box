@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/ikox01/upcloud-box/internal/config"
@@ -26,7 +27,7 @@ var initCmd = &cobra.Command{
 			return fmt.Errorf("cloud-init path cannot be empty")
 		}
 
-		keys, err := resolveSSHAuthorizedKeys(initSSHKeyPaths)
+		keys, err := resolveSSHAuthorizedKeys(initSSHKeyPaths, cfgFile)
 		if err != nil {
 			return err
 		}
@@ -100,11 +101,26 @@ func writeCloudInit(path, user string, sshKeys []string, force bool) error {
 	return nil
 }
 
-func resolveSSHAuthorizedKeys(paths []string) ([]string, error) {
-	if len(paths) == 0 {
-		return []string{"ssh-ed25519 REPLACE_ME_WITH_A_REAL_PUBLIC_KEY upcloud-box"}, nil
+func resolveSSHAuthorizedKeys(paths []string, cfgPath string) ([]string, error) {
+	if len(paths) > 0 {
+		return readSSHAuthorizedKeys(paths)
 	}
 
+	inferredPath := inferPublicKeyPathFromConfig(cfgPath)
+	if inferredPath != "" {
+		keys, err := readSSHAuthorizedKeys([]string{inferredPath})
+		if err == nil {
+			return keys, nil
+		}
+		if !errors.Is(err, os.ErrNotExist) {
+			return nil, err
+		}
+	}
+
+	return []string{"ssh-ed25519 REPLACE_ME_WITH_A_REAL_PUBLIC_KEY upcloud-box"}, nil
+}
+
+func readSSHAuthorizedKeys(paths []string) ([]string, error) {
 	keys := make([]string, 0, len(paths))
 	for _, path := range paths {
 		data, err := os.ReadFile(path)
@@ -119,6 +135,41 @@ func resolveSSHAuthorizedKeys(paths []string) ([]string, error) {
 	}
 
 	return keys, nil
+}
+
+func inferPublicKeyPathFromConfig(cfgPath string) string {
+	privateKeyPath := config.Default().SSH.PrivateKeyPath
+
+	if cfg, err := config.Load(cfgPath); err == nil {
+		if strings.TrimSpace(cfg.SSH.PrivateKeyPath) != "" {
+			privateKeyPath = cfg.SSH.PrivateKeyPath
+		}
+	}
+
+	privateKeyPath = strings.TrimSpace(privateKeyPath)
+	if privateKeyPath == "" {
+		return ""
+	}
+
+	candidate := privateKeyPath
+	if !strings.HasSuffix(candidate, ".pub") {
+		candidate += ".pub"
+	}
+
+	if strings.HasPrefix(candidate, "~/") {
+		home, err := os.UserHomeDir()
+		if err == nil {
+			candidate = filepath.Join(home, candidate[2:])
+		}
+	}
+
+	candidate = os.ExpandEnv(candidate)
+	if !filepath.IsAbs(candidate) {
+		cfgDir := filepath.Dir(cfgPath)
+		candidate = filepath.Join(cfgDir, candidate)
+	}
+
+	return filepath.Clean(candidate)
 }
 
 func buildCloudInit(path, user string, sshKeys []string) []byte {
