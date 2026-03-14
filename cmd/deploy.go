@@ -56,16 +56,17 @@ var deployCmd = &cobra.Command{
 			return err
 		}
 
-		fmt.Println("Deploy: pulling and replacing container...")
-		if err := deployer.Run(context.Background(), deployrunner.Request{
-			Host:                host,
-			ContainerName:       cfg.Deploy.ContainerName,
-			Image:               cfg.Deploy.Image,
-			Port:                cfg.Deploy.Port,
-			EnvFile:             cfg.Deploy.EnvFile,
-			HealthcheckURL:      cfg.Deploy.HealthcheckURL,
-			HealthcheckTimeout:  time.Duration(cfg.Deploy.HealthcheckTimeoutSecs) * time.Second,
-			HealthcheckInterval: time.Duration(cfg.Deploy.HealthcheckIntervalSecs) * time.Second,
+		if err := runStep("Deploying container and running health checks...", "Deploy completed successfully", func() error {
+			return deployer.Run(context.Background(), deployrunner.Request{
+				Host:                host,
+				ContainerName:       cfg.Deploy.ContainerName,
+				Image:               cfg.Deploy.Image,
+				Port:                cfg.Deploy.Port,
+				EnvFile:             cfg.Deploy.EnvFile,
+				HealthcheckURL:      cfg.Deploy.HealthcheckURL,
+				HealthcheckTimeout:  time.Duration(cfg.Deploy.HealthcheckTimeoutSecs) * time.Second,
+				HealthcheckInterval: time.Duration(cfg.Deploy.HealthcheckIntervalSecs) * time.Second,
+			})
 		}); err != nil {
 			return err
 		}

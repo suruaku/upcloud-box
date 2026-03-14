@@ -51,8 +51,9 @@ var destroyCmd = &cobra.Command{
 			return err
 		}
 
-		fmt.Printf("Destroying server %s...\n", serverID)
-		if err := provider.Destroy(context.Background(), serverID); err != nil {
+		if err := runStep("Destroying server on UpCloud...", "Destroy request completed", func() error {
+			return provider.Destroy(context.Background(), serverID)
+		}); err != nil {
 			if isLikelyNotFound(err) {
 				fmt.Printf("Server %s already missing; cleaning local state\n", serverID)
 			} else {

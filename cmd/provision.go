@@ -46,14 +46,18 @@ var provisionCmd = &cobra.Command{
 			return err
 		}
 
-		result, err := provider.Provision(context.Background(), infra.ProvisionRequest{
-			Zone:         cfg.UpCloud.Zone,
-			Plan:         cfg.UpCloud.Plan,
-			Template:     cfg.UpCloud.Template,
-			Hostname:     cfg.Provision.Hostname,
-			CloudInitRaw: cloudInitRaw,
-		})
-		if err != nil {
+		var result infra.ProvisionResult
+		if err := runStep("Provisioning server on UpCloud...", "Server provisioning request accepted", func() error {
+			var stepErr error
+			result, stepErr = provider.Provision(context.Background(), infra.ProvisionRequest{
+				Zone:         cfg.UpCloud.Zone,
+				Plan:         cfg.UpCloud.Plan,
+				Template:     cfg.UpCloud.Template,
+				Hostname:     cfg.Provision.Hostname,
+				CloudInitRaw: cloudInitRaw,
+			})
+			return stepErr
+		}); err != nil {
 			return err
 		}
 
@@ -63,8 +67,12 @@ var provisionCmd = &cobra.Command{
 			return err
 		}
 
-		serverInfo, err := provider.WaitReady(context.Background(), result.ServerID, provisionWaitTimeout)
-		if err != nil {
+		var serverInfo infra.ServerInfo
+		if err := runStep("Waiting for server to become ready...", "Server is started", func() error {
+			var stepErr error
+			serverInfo, stepErr = provider.WaitReady(context.Background(), result.ServerID, provisionWaitTimeout)
+			return stepErr
+		}); err != nil {
 			return err
 		}
 
@@ -73,7 +81,9 @@ var provisionCmd = &cobra.Command{
 			return err
 		}
 
-		if err := runPostProvisionChecks(cfg, serverInfo.PublicIPv4); err != nil {
+		if err := runStep("Running post-provision SSH and Docker checks...", "Post-provision checks passed", func() error {
+			return runPostProvisionChecks(cfg, serverInfo.PublicIPv4)
+		}); err != nil {
 			return err
 		}
 
@@ -137,12 +147,10 @@ func runPostProvisionChecks(cfg *config.Config, host string) error {
 
 	const checkTimeout = 5 * time.Minute
 
-	fmt.Println("Post-provision: waiting for SSH connectivity...")
 	if _, err := runner.RunWithRetry(context.Background(), host, "true", checkTimeout); err != nil {
 		return fmt.Errorf("post-provision ssh connectivity check failed: %w", err)
 	}
 
-	fmt.Println("Post-provision: waiting for docker daemon readiness...")
 	if _, err := runner.RunWithRetry(context.Background(), host, "docker info >/dev/null 2>&1", checkTimeout); err != nil {
 		return fmt.Errorf("post-provision docker check failed: %w", err)
 	}

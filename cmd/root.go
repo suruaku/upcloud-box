@@ -3,6 +3,7 @@ package cmd
 import "github.com/spf13/cobra"
 
 var cfgFile string
+var noSpinner bool
 
 var rootCmd = &cobra.Command{
 	Use:   "upcloud-box",
@@ -16,4 +17,5 @@ func Execute() error {
 
 func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "upcloud-box.yaml", "config file path")
+	rootCmd.PersistentFlags().BoolVar(&noSpinner, "no-spinner", false, "disable spinner progress output")
 }
