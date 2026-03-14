@@ -5,9 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
+	"time"
 
+	"github.com/ikox01/upcloud-box/internal/config"
 	"github.com/ikox01/upcloud-box/internal/infra/factory"
+	sshrunner "github.com/ikox01/upcloud-box/internal/ssh"
 	"github.com/ikox01/upcloud-box/internal/state"
 	"github.com/spf13/cobra"
 )
@@ -54,6 +58,8 @@ var statusCmd = &cobra.Command{
 		fmt.Printf("Remote infra: %s (%s)\n", serverInfo.ServerID, serverInfo.Hostname)
 		fmt.Printf("remote_state: %s\n", renderOrDash(serverInfo.State))
 		fmt.Printf("remote_public_ipv4: %s\n", renderOrDash(serverInfo.PublicIPv4))
+
+		renderRemoteAppSummary(s, serverInfo.PublicIPv4)
 		return nil
 	},
 }
@@ -76,4 +82,82 @@ func isLikelyNotFound(err error) bool {
 
 	msg := strings.ToLower(err.Error())
 	return strings.Contains(msg, "not found") || strings.Contains(msg, "status code 404") || strings.Contains(msg, " 404")
+}
+
+func renderRemoteAppSummary(s *state.State, remoteIPv4 string) {
+	cfg, err := config.Load(cfgFile)
+	if err != nil {
+		fmt.Printf("Remote app: skipped (load config %q: %v)\n", cfgFile, err)
+		return
+	}
+
+	host := strings.TrimSpace(s.PublicIP)
+	if host == "" {
+		host = strings.TrimSpace(remoteIPv4)
+	}
+	if host == "" {
+		fmt.Println("Remote app: skipped (no public IP available)")
+		return
+	}
+
+	runner, err := sshrunner.NewRunner(sshrunner.Config{
+		User:           cfg.SSH.User,
+		PrivateKeyPath: cfg.SSH.PrivateKeyPath,
+		ConfigDir:      filepath.Dir(cfgFile),
+		ConnectTimeout: time.Duration(cfg.SSH.ConnectTimeoutSeconds) * time.Second,
+		RetryInterval:  3 * time.Second,
+	})
+	if err != nil {
+		fmt.Printf("Remote app: skipped (%v)\n", err)
+		return
+	}
+
+	containerName := strings.TrimSpace(cfg.Deploy.ContainerName)
+	if containerName == "" {
+		fmt.Println("Remote app: skipped (deploy.container_name is empty)")
+		return
+	}
+
+	result, err := runner.Run(context.Background(), host, fmt.Sprintf("docker ps -a --filter name=^/%s$ --format '{{.Names}}|{{.Status}}|{{.Image}}'", shellQuote(containerName)))
+	if err != nil {
+		fmt.Printf("Remote app: unavailable (%v)\n", err)
+		return
+	}
+
+	line := strings.TrimSpace(result.Stdout)
+	if line == "" {
+		fmt.Printf("Remote app: container %q not found\n", containerName)
+		return
+	}
+
+	parts := strings.SplitN(line, "|", 3)
+	containerStatus := "-"
+	containerImage := "-"
+	if len(parts) > 1 {
+		containerStatus = renderOrDash(parts[1])
+	}
+	if len(parts) > 2 {
+		containerImage = renderOrDash(parts[2])
+	}
+
+	healthStatus := "unhealthy"
+	healthErr := ""
+	if _, err := runner.Run(context.Background(), host, fmt.Sprintf("curl -fsS --max-time 5 %s >/dev/null", shellQuote(cfg.Deploy.HealthcheckURL))); err == nil {
+		healthStatus = "healthy"
+	} else {
+		healthErr = err.Error()
+	}
+
+	fmt.Printf("Remote app: %s\n", renderOrDash(containerName))
+	fmt.Printf("container_status: %s\n", containerStatus)
+	fmt.Printf("container_image: %s\n", containerImage)
+	fmt.Printf("health_url: %s\n", renderOrDash(cfg.Deploy.HealthcheckURL))
+	fmt.Printf("health: %s\n", healthStatus)
+	if healthErr != "" {
+		fmt.Printf("health_error: %s\n", healthErr)
+	}
+}
+
+func shellQuote(s string) string {
+	return "'" + strings.ReplaceAll(strings.TrimSpace(s), "'", "'\"'\"'") + "'"
 }
