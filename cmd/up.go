@@ -29,7 +29,7 @@ var upCmd = &cobra.Command{
 		cfg, err := config.Load(cfgFile)
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
-				return wrapUserError("load config", fmt.Errorf("config %q not found; run `upcloud-box init --ssh-key ~/.ssh/id_ed25519.pub`, edit it, then rerun `upcloud-box up`", cfgFile))
+				return wrapUserError("load config", fmt.Errorf("config %q not found; run `upcloud-box init`, edit it, then rerun `upcloud-box up`", cfgFile))
 			}
 			return wrapUserError("load config", err)
 		}
