@@ -80,7 +80,7 @@ jobs:
           set -euo pipefail
           cd homebrew-tap
 
-          BRANCH="bump/upcloud-box-${TAG}"
+          BRANCH="bump/upcloud-box-${TAG}-${GITHUB_RUN_ID}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
