@@ -89,3 +89,11 @@ jobs:
           files: |
             release/*
           generate_release_notes: true
+
+  update_tap:
+    needs: publish
+    uses: ./.github/workflows/update-homebrew-tap.yml
+    with:
+      tag: ${{ github.ref_name }}
+    secrets:
+      HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}

@@ -1,0 +1,115 @@
+name: Reusable - Update Homebrew Tap
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: Release tag (e.g. v1.2.3)
+        required: true
+        type: string
+    secrets:
+      HOMEBREW_TAP_TOKEN:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  update_tap:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: homebrew-tap-${{ inputs.tag }}
+      cancel-in-progress: false
+    steps:
+      - name: Resolve release metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="${{ inputs.tag }}"
+          case "$TAG" in
+            v*) ;;
+            *)
+              echo "Tag must start with 'v' (got: $TAG)"
+              exit 1
+              ;;
+          esac
+
+          VERSION="${TAG#v}"
+          ASSET_NAME="upcloud-app-platform_${TAG}_darwin_arm64.tar.gz"
+
+          ASSET_DIGEST=""
+          for attempt in $(seq 1 30); do
+            ASSET_DIGEST=$(gh release view "$TAG" --repo "${GITHUB_REPOSITORY}" --json assets --jq ".assets[] | select(.name==\"${ASSET_NAME}\") | .digest" 2>/dev/null || true)
+            if [ -n "${ASSET_DIGEST}" ]; then
+              break
+            fi
+
+            if [ "$attempt" -lt 30 ]; then
+              echo "Release asset ${ASSET_NAME} not ready yet (attempt ${attempt}/30), retrying in 10s..."
+              sleep 10
+            fi
+          done
+
+          if [ -z "${ASSET_DIGEST}" ]; then
+            echo "Missing digest for release asset: ${ASSET_NAME}"
+            exit 1
+          fi
+
+          SHA256="${ASSET_DIGEST#sha256:}"
+          if [ -z "${SHA256}" ] || [ "${SHA256}" = "${ASSET_DIGEST}" ]; then
+            echo "Could not parse sha256 digest for ${ASSET_NAME}"
+            exit 1
+          fi
+
+          DOWNLOAD_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/${ASSET_NAME}"
+
+          echo "TAG=${TAG}" >> "$GITHUB_ENV"
+          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
+          echo "SHA256=${SHA256}" >> "$GITHUB_ENV"
+          echo "DOWNLOAD_URL=${DOWNLOAD_URL}" >> "$GITHUB_ENV"
+
+      - name: Checkout tap repo
+        uses: actions/checkout@v5
+        with:
+          repository: suruaku/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: homebrew-tap
+
+      - name: Update formula
+        run: |
+          set -euo pipefail
+          FORMULA="homebrew-tap/Formula/upcloud-app-platform.rb"
+
+          ruby -i -pe 'gsub(/^  url ".*"$/, "  url \"" + ENV["DOWNLOAD_URL"] + "\"")' "$FORMULA"
+          ruby -i -pe 'gsub(/^  sha256 ".*"$/, "  sha256 \"" + ENV["SHA256"] + "\"")' "$FORMULA"
+          ruby -i -pe 'gsub(/^  version ".*"$/, "  version \"" + ENV["VERSION"] + "\"")' "$FORMULA"
+          ruby -i -pe 'gsub(/assert_match "v[^"]+"/, "assert_match \"v" + ENV["VERSION"] + "\"")' "$FORMULA"
+
+      - name: Create pull request in tap repo
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          set -euo pipefail
+          cd homebrew-tap
+
+          BRANCH="bump/upcloud-app-platform-${TAG}-${GITHUB_RUN_ID}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git checkout -b "$BRANCH"
+
+          if git diff --quiet; then
+            echo "No formula changes; skipping PR."
+            exit 0
+          fi
+
+          git add Formula/upcloud-app-platform.rb
+          git commit -m "chore: bump upcloud-app-platform to ${TAG}"
+          git push -u origin "$BRANCH"
+
+          gh pr create \
+            --title "chore: bump upcloud-app-platform to ${TAG}" \
+            --body "Automated formula update for ${TAG}.\n\n- Version: ${VERSION}\n- URL: ${DOWNLOAD_URL}\n- SHA256: ${SHA256}" \
+            --base main \
+            --head "$BRANCH"
