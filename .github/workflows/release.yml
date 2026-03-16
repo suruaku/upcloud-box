@@ -39,9 +39,9 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
         run: |
           mkdir -p dist
-          BIN_NAME=upcloud-box
-          if [ "$GOOS" = "windows" ]; then BIN_NAME=upcloud-box.exe; fi
-          go build -trimpath -ldflags "-s -w -X github.com/ikox01/upcloud-box/cmd.appVersion=${GITHUB_REF_NAME}" -o "dist/${BIN_NAME}" .
+          BIN_NAME=upcloud-app-platform
+          if [ "$GOOS" = "windows" ]; then BIN_NAME=upcloud-app-platform.exe; fi
+          go build -trimpath -ldflags "-s -w -X github.com/suruaku/upcloud-app-platform/cmd.appVersion=${GITHUB_REF_NAME}" -o "dist/${BIN_NAME}" .
 
       - name: Package artifact
         run: |
@@ -49,13 +49,13 @@ jobs:
           OS="${{ matrix.goos }}"
           ARCH="${{ matrix.goarch }}"
           EXT="${{ matrix.ext }}"
-          ARTIFACT="upcloud-box_${VERSION}_${OS}_${ARCH}"
+          ARTIFACT="upcloud-app-platform_${VERSION}_${OS}_${ARCH}"
           mkdir -p release
           if [ "$OS" = "windows" ]; then
             cd dist
-            zip "../release/${ARTIFACT}.zip" upcloud-box.exe
+            zip "../release/${ARTIFACT}.zip" upcloud-app-platform.exe
           else
-            tar -C dist -czf "release/${ARTIFACT}.tar.gz" upcloud-box
+            tar -C dist -czf "release/${ARTIFACT}.tar.gz" upcloud-app-platform
           fi
 
       - name: Upload build artifact

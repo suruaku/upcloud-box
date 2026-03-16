@@ -9,11 +9,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ikox01/upcloud-box/internal/config"
-	"github.com/ikox01/upcloud-box/internal/infra/factory"
-	sshrunner "github.com/ikox01/upcloud-box/internal/ssh"
-	"github.com/ikox01/upcloud-box/internal/state"
 	"github.com/spf13/cobra"
+	"github.com/suruaku/upcloud-app-platform/internal/config"
+	"github.com/suruaku/upcloud-app-platform/internal/infra/factory"
+	sshrunner "github.com/suruaku/upcloud-app-platform/internal/ssh"
+	"github.com/suruaku/upcloud-app-platform/internal/state"
 )
 
 var statusCmd = &cobra.Command{

@@ -10,7 +10,7 @@ func TestLoadOrBootstrapConfigForUpCreatesConfigOnly(t *testing.T) {
 	workDir := t.TempDir()
 	t.Chdir(workDir)
 
-	configPath := filepath.Join(workDir, "upcloud-box.yaml")
+	configPath := filepath.Join(workDir, "upcloud-app-platform.yaml")
 
 	cfg, bootstrap, err := loadOrBootstrapConfigForUp(configPath)
 	if err != nil {
@@ -35,7 +35,7 @@ func TestLoadOrBootstrapConfigForUpUsesExistingConfig(t *testing.T) {
 	workDir := t.TempDir()
 	t.Chdir(workDir)
 
-	configPath := filepath.Join(workDir, "upcloud-box.yaml")
+	configPath := filepath.Join(workDir, "upcloud-app-platform.yaml")
 	if err := writeConfig(configPath, false, ""); err != nil {
 		t.Fatalf("write config: %v", err)
 	}

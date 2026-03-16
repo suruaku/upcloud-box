@@ -8,11 +8,11 @@ This document locks the v1 implementation plan for a Go + Cobra CLI that provisi
 - Initialize module with `go mod init`.
 - Add Cobra scaffold (`main.go`, `cmd/root.go`).
 - Create command stubs: `init`, `provision`, `deploy`, `status`, `destroy`.
-- Add global `--config` flag (default `upcloud-box.yaml`).
+- Add global `--config` flag (default `upcloud-app-platform.yaml`).
 
 ### Day 1: Config and state foundation
 - Define config structs and loader with strict validation.
-- Define state structs and read/write helpers for `.upcloud-box.state.json`.
+- Define state structs and read/write helpers for `.upcloud-app-platform.state.json`.
 - Implement `init` to generate a minimal config template and a default `cloud-init.yaml`.
 - Add clear validation errors (missing credentials, bad port format, missing cloud-init path).
 
@@ -45,7 +45,7 @@ This document locks the v1 implementation plan for a Go + Cobra CLI that provisi
 - Write README quickstart and troubleshooting notes.
 - Freeze v1 scope and cut release candidate.
 
-## Minimal Config Schema (`upcloud-box.yaml`)
+## Minimal Config Schema (`upcloud-app-platform.yaml`)
 
 ```yaml
 project: "my-app"
@@ -74,7 +74,7 @@ deploy:
   healthcheck_interval_seconds: 3
 ```
 
-## Minimal State Schema (`.upcloud-box.state.json`)
+## Minimal State Schema (`.upcloud-app-platform.state.json`)
 
 ```json
 {
@@ -95,7 +95,7 @@ The CLI uses `UPCLOUD_TOKEN` for UpCloud API authentication.
 
 ## Init Command Defaults
 
-- `upcloud-box init` creates three files: `upcloud-box.yaml`, `.upcloud-box.state.json`, and `cloud-init.yaml`.
+- `upcloud-app-platform init` creates three files: `upcloud-app-platform.yaml`, `.upcloud-app-platform.state.json`, and `cloud-init.yaml`.
 - Generated cloud-init defaults disable password SSH auth, keep root disabled, create one sudo user, and install baseline packages (`ca-certificates`, `curl`, `fail2ban`, `ufw`, `docker.io`).
 - Provide SSH public key files at init time with repeatable `--ssh-key` flags.
 - Override the generated username with `--user` and cloud-init output path with `--cloud-init-path`.
@@ -103,7 +103,7 @@ The CLI uses `UPCLOUD_TOKEN` for UpCloud API authentication.
 Example:
 
 ```bash
-upcloud-box init --ssh-key ~/.ssh/id_ed25519.pub --user deploy
+upcloud-app-platform init --ssh-key ~/.ssh/id_ed25519.pub --user deploy
 ```
 
 ## Suggested Go Package Layout

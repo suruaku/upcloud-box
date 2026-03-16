@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ikox01/upcloud-box/internal/health"
-	sshrunner "github.com/ikox01/upcloud-box/internal/ssh"
+	"github.com/suruaku/upcloud-app-platform/internal/health"
+	sshrunner "github.com/suruaku/upcloud-app-platform/internal/ssh"
 )
 
 type Request struct {

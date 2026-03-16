@@ -12,7 +12,7 @@ import (
 	"github.com/UpCloudLtd/upcloud-go-api/v8/upcloud/client"
 	"github.com/UpCloudLtd/upcloud-go-api/v8/upcloud/request"
 	"github.com/UpCloudLtd/upcloud-go-api/v8/upcloud/service"
-	"github.com/ikox01/upcloud-box/internal/infra"
+	"github.com/suruaku/upcloud-app-platform/internal/infra"
 )
 
 var uuidPattern = regexp.MustCompile(`^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`)

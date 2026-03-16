@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/ikox01/upcloud-box/cmd"
+	"github.com/suruaku/upcloud-app-platform/cmd"
 )
 
 func main() {

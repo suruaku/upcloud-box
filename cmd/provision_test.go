@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ikox01/upcloud-box/internal/config"
+	"github.com/suruaku/upcloud-app-platform/internal/config"
 )
 
 func TestResolveCloudInitRawUsesConfigFileWhenPathSet(t *testing.T) {
@@ -20,7 +20,7 @@ func TestResolveCloudInitRawUsesConfigFileWhenPathSet(t *testing.T) {
 	cfg := config.Default()
 	cfg.Provision.CloudInitPath = cloudInitPath
 
-	got, err := resolveCloudInitRaw(&cfg, filepath.Join(workDir, "upcloud-box.yaml"))
+	got, err := resolveCloudInitRaw(&cfg, filepath.Join(workDir, "upcloud-app-platform.yaml"))
 	if err != nil {
 		t.Fatalf("resolve cloud-init raw: %v", err)
 	}
@@ -39,7 +39,7 @@ func TestResolveCloudInitRawFailsWithoutPublicKey(t *testing.T) {
 	cfg := config.Default()
 	cfg.Provision.CloudInitPath = ""
 
-	_, err := resolveCloudInitRaw(&cfg, filepath.Join(home, "upcloud-box.yaml"))
+	_, err := resolveCloudInitRaw(&cfg, filepath.Join(home, "upcloud-app-platform.yaml"))
 	if err == nil {
 		t.Fatal("expected error")
 	}

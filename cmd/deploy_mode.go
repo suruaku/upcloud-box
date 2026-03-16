@@ -7,7 +7,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/ikox01/upcloud-box/internal/config"
+	"github.com/suruaku/upcloud-app-platform/internal/config"
 )
 
 type deployMode string
@@ -70,7 +70,7 @@ func remoteComposeDir(project, sshUser string) string {
 		sshUser = "ubuntu"
 	}
 
-	return filepath.ToSlash(filepath.Join("/home", sshUser, ".upcloud-box", remoteProjectName(project), "current"))
+	return filepath.ToSlash(filepath.Join("/home", sshUser, ".upcloud-app-platform", remoteProjectName(project), "current"))
 }
 
 func hasLikelySingleDeploySettings(cfg *config.Config) bool {

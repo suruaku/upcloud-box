@@ -13,7 +13,7 @@ func TestDetectDeployMode(t *testing.T) {
 		t.Parallel()
 
 		dir := t.TempDir()
-		configPath := filepath.Join(dir, "upcloud-box.yaml")
+		configPath := filepath.Join(dir, "upcloud-app-platform.yaml")
 		if err := os.WriteFile(configPath, []byte("project: test\n"), 0o600); err != nil {
 			t.Fatalf("write config: %v", err)
 		}
@@ -40,7 +40,7 @@ func TestDetectDeployMode(t *testing.T) {
 		t.Parallel()
 
 		dir := t.TempDir()
-		configPath := filepath.Join(dir, "upcloud-box.yaml")
+		configPath := filepath.Join(dir, "upcloud-app-platform.yaml")
 		if err := os.WriteFile(configPath, []byte("project: test\n"), 0o600); err != nil {
 			t.Fatalf("write config: %v", err)
 		}
@@ -67,7 +67,7 @@ func TestDetectDeployMode(t *testing.T) {
 		t.Parallel()
 
 		dir := t.TempDir()
-		configPath := filepath.Join(dir, "upcloud-box.yaml")
+		configPath := filepath.Join(dir, "upcloud-app-platform.yaml")
 		if err := os.WriteFile(configPath, []byte("project: test\n"), 0o600); err != nil {
 			t.Fatalf("write config: %v", err)
 		}

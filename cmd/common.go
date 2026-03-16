@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/ikox01/upcloud-box/internal/config"
+	"github.com/suruaku/upcloud-app-platform/internal/config"
 )
 
 func loadConfigOrErr() (*config.Config, error) {

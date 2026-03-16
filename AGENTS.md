@@ -6,7 +6,7 @@ Follow this file unless a user request explicitly overrides it.
 
 ## Project Snapshot
 - Language: Go
-- Module: `github.com/ikox01/upcloud-box`
+- Module: `github.com/suruaku/upcloud-app-platform`
 - Go version: `go 1.25.7` (`1.25.x` in CI)
 - App type: Cobra CLI
 - Entry point: `main.go`
@@ -47,7 +47,7 @@ go build ./...
 
 Release-style local build (matches release workflow ldflags pattern):
 ```bash
-go build -trimpath -ldflags "-s -w -X github.com/ikox01/upcloud-box/cmd.appVersion=dev" -o dist/upcloud-box .
+go build -trimpath -ldflags "-s -w -X github.com/suruaku/upcloud-app-platform/cmd.appVersion=dev" -o dist/upcloud-app-platform .
 ```
 
 ### Lint / static checks
@@ -152,7 +152,7 @@ go test ./...
 - Preserve spinner behavior and `--no-spinner` / non-TTY behavior.
 - Preserve `--verbose` semantics (extra detail only when requested).
 - Avoid silent changes to command flags or command behavior.
-- Treat `.upcloud-box.state.json` as authoritative local state.
+- Treat `.upcloud-app-platform.state.json` as authoritative local state.
 - Keep secure write modes (`0o600`) for config/state files.
 
 ### Remote command execution

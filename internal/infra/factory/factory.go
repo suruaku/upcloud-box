@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ikox01/upcloud-box/internal/infra"
-	upcloudapi "github.com/ikox01/upcloud-box/internal/infra/upcloudapi"
+	"github.com/suruaku/upcloud-app-platform/internal/infra"
+	upcloudapi "github.com/suruaku/upcloud-app-platform/internal/infra/upcloudapi"
 )
 
 func NewDefaultProvider() (infra.Provider, error) {

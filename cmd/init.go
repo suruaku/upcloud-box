@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ikox01/upcloud-box/internal/config"
-	"github.com/ikox01/upcloud-box/internal/state"
+	"github.com/suruaku/upcloud-app-platform/internal/config"
+	"github.com/suruaku/upcloud-app-platform/internal/state"
 
 	"github.com/spf13/cobra"
 )
@@ -55,7 +55,7 @@ var initCmd = &cobra.Command{
 		if initWriteCloudInit {
 			fmt.Printf("Created %s\n", cloudInitPath)
 		}
-		fmt.Println("Next: export UPCLOUD_TOKEN, edit your config values, then run upcloud-box provision")
+		fmt.Println("Next: export UPCLOUD_TOKEN, edit your config values, then run upcloud-app-platform provision")
 		return nil
 	},
 }
@@ -224,7 +224,7 @@ func buildCloudInit(user string, sshKeys []string) []byte {
 	b.WriteString("users:\n")
 	b.WriteString("  - default\n")
 	b.WriteString("  - name: " + trimmedUser + "\n")
-	b.WriteString("    gecos: Provisioned by upcloud-box\n")
+	b.WriteString("    gecos: Provisioned by upcloud-app-platform\n")
 	b.WriteString("    shell: /bin/bash\n")
 	b.WriteString("    lock_passwd: true\n")
 	b.WriteString("    sudo: ALL=(ALL) NOPASSWD:ALL\n")
@@ -241,7 +241,7 @@ func buildCloudInit(user string, sshKeys []string) []byte {
 	b.WriteString("  - make\n")
 	b.WriteString("  - docker.io\n")
 	b.WriteString("write_files:\n")
-	b.WriteString("  - path: /etc/ssh/sshd_config.d/99-upcloud-box-hardening.conf\n")
+	b.WriteString("  - path: /etc/ssh/sshd_config.d/99-upcloud-app-platform-hardening.conf\n")
 	b.WriteString("    permissions: '0644'\n")
 	b.WriteString("    content: |\n")
 	b.WriteString("      PermitRootLogin no\n")
@@ -272,7 +272,7 @@ func buildCloudInit(user string, sshKeys []string) []byte {
 	b.WriteString("  - [sh, -c, \"ufw --force allow OpenSSH\"]\n")
 	b.WriteString("  - [sh, -c, \"ufw --force allow 80,443/tcp\"]\n")
 	b.WriteString("  - [sh, -c, \"ufw --force enable\"]\n")
-	b.WriteString("final_message: upcloud-box cloud-init complete\n")
+	b.WriteString("final_message: upcloud-app-platform cloud-init complete\n")
 
 	return []byte(b.String())
 }

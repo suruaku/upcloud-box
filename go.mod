@@ -1,4 +1,4 @@
-module github.com/ikox01/upcloud-box
+module github.com/suruaku/upcloud-app-platform
 
 go 1.25.7
 

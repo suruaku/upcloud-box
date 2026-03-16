@@ -1,6 +1,6 @@
-# upcloud-box
+# upcloud-app-platform
 
-`upcloud-box` is a Go CLI for provisioning one secure Docker host on UpCloud and deploying one container workload.
+`upcloud-app-platform` is a Go CLI for a lightweight UpCloud PaaS workflow: build, deploy, and scale web or mobile applications quickly without managing low-level infrastructure details.
 
 ## Install
 
@@ -8,7 +8,7 @@ Install with Homebrew (macOS arm64):
 
 ```bash
 brew tap suruaku/tap
-brew install upcloud-box
+brew install upcloud-app-platform
 ```
 
 Homebrew installation also sets up shell completions automatically.
@@ -33,14 +33,14 @@ export UPCLOUD_TOKEN="ucat_..."
 3) Run full runtime flow:
 
 ```bash
-upcloud-box up
+upcloud-app-platform up
 ```
 
-On first run, `upcloud-box up` bootstraps `upcloud-box.yaml` automatically, then continues provisioning/deploy.
+On first run, `upcloud-app-platform up` bootstraps `upcloud-app-platform.yaml` automatically, then continues provisioning/deploy.
 
 SSH key behavior:
 
-- If `ssh.private_key_path` is empty, upcloud-box auto-detects `~/.ssh/id_ed25519`, then `~/.ssh/id_ecdsa`, then `~/.ssh/id_rsa`.
+- If `ssh.private_key_path` is empty, upcloud-app-platform auto-detects `~/.ssh/id_ed25519`, then `~/.ssh/id_ecdsa`, then `~/.ssh/id_rsa`.
 - By default, cloud-init is generated internally (no `cloud-init.yaml` file needed).
 - Internal cloud-init key material is auto-detected from `.pub` keys in the same order.
 - If `ssh.private_key_path` is explicitly set to an invalid path, commands fail fast.
@@ -48,38 +48,38 @@ SSH key behavior:
 
 First run creates:
 
-- `upcloud-box.yaml`
-- `.upcloud-box.state.json`
+- `upcloud-app-platform.yaml`
+- `.upcloud-app-platform.state.json`
 
-`upcloud-box up` provisions the server if needed, then deploys your Docker stack automatically.
-If no compose file is found, it falls back to single-container settings in `upcloud-box.yaml`.
+`upcloud-app-platform up` provisions the server if needed, then deploys your Docker stack automatically.
+If no compose file is found, it falls back to single-container settings in `upcloud-app-platform.yaml`.
 
 4) Inspect status:
 
 ```bash
-upcloud-box status
+upcloud-app-platform status
 ```
 
 5) Clean up:
 
 ```bash
-upcloud-box destroy --yes
+upcloud-app-platform destroy --yes
 ```
 
 This removes the tracked server and clears local infra state.
 
 Core commands:
 
-- `upcloud-box init` - optional manual scaffold for config/state (`--write-cloud-init` for a cloud-init file)
-- `upcloud-box provision` - create server and persist infra state
-- `upcloud-box deploy` - deploy your Docker stack (or single-container fallback)
-- `upcloud-box up` - provision if needed, then deploy your stack
-- `upcloud-box status` - local state + remote infra/app summary
-- `upcloud-box destroy` - remove the server and clean state
+- `upcloud-app-platform init` - optional manual scaffold for config/state (`--write-cloud-init` for a cloud-init file)
+- `upcloud-app-platform provision` - create server and persist infra state
+- `upcloud-app-platform deploy` - deploy your Docker stack (or single-container fallback)
+- `upcloud-app-platform up` - provision if needed, then deploy your stack
+- `upcloud-app-platform status` - local state + remote infra/app summary
+- `upcloud-app-platform destroy` - remove the server and clean state
 
 Useful flags:
 
-- `--config <path>`: custom config path (default: `upcloud-box.yaml`)
+- `--config <path>`: custom config path (default: `upcloud-app-platform.yaml`)
 - `--verbose`: show detailed error output and verbose logs
 - `--no-spinner`: disable spinner progress output
 
@@ -87,10 +87,10 @@ Useful flags:
 
 - `initialize provider failed (auth)`: verify `UPCLOUD_TOKEN` is set and valid.
 - `... failed (quota)`: check UpCloud resource limits and selected zone capacity.
-- `post-provision checks failed (ssh)`: confirm `ssh.user` and SSH key setup match. If `ssh.private_key_path` is empty, upcloud-box auto-detects `~/.ssh/id_ed25519`, then `~/.ssh/id_ecdsa`, then `~/.ssh/id_rsa`; if it is set to an invalid path, the command fails fast.
-- `read cloud-init failed (validation)`: create a public key at `~/.ssh/id_ed25519.pub` (or `id_ecdsa.pub` / `id_rsa.pub`) or run `upcloud-box init --write-cloud-init --ssh-key <path>`.
+- `post-provision checks failed (ssh)`: confirm `ssh.user` and SSH key setup match. If `ssh.private_key_path` is empty, upcloud-app-platform auto-detects `~/.ssh/id_ed25519`, then `~/.ssh/id_ecdsa`, then `~/.ssh/id_rsa`; if it is set to an invalid path, the command fails fast.
+- `read cloud-init failed (validation)`: create a public key at `~/.ssh/id_ed25519.pub` (or `id_ecdsa.pub` / `id_rsa.pub`) or run `upcloud-app-platform init --write-cloud-init --ssh-key <path>`.
 - `deploy container failed (health)`: verify app startup, exposed port mapping, and `deploy.healthcheck_url`.
-- `status` shows server missing: run `upcloud-box up` to reprovision or `upcloud-box destroy --yes` to clean state.
+- `status` shows server missing: run `upcloud-app-platform up` to reprovision or `upcloud-app-platform destroy --yes` to clean state.
 
 ## Development
 
@@ -132,8 +132,8 @@ git push origin v1.0.1
 
 ```bash
 brew update
-brew upgrade upcloud-box
-upcloud-box --version
+brew upgrade upcloud-app-platform
+upcloud-app-platform --version
 ```
 
 Notes:

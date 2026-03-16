@@ -9,13 +9,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ikox01/upcloud-box/internal/config"
-	deployrunner "github.com/ikox01/upcloud-box/internal/deploy"
-	"github.com/ikox01/upcloud-box/internal/infra"
-	"github.com/ikox01/upcloud-box/internal/infra/factory"
-	sshrunner "github.com/ikox01/upcloud-box/internal/ssh"
-	"github.com/ikox01/upcloud-box/internal/state"
 	"github.com/spf13/cobra"
+	"github.com/suruaku/upcloud-app-platform/internal/config"
+	deployrunner "github.com/suruaku/upcloud-app-platform/internal/deploy"
+	"github.com/suruaku/upcloud-app-platform/internal/infra"
+	"github.com/suruaku/upcloud-app-platform/internal/infra/factory"
+	sshrunner "github.com/suruaku/upcloud-app-platform/internal/ssh"
+	"github.com/suruaku/upcloud-app-platform/internal/state"
 )
 
 var upProvisionOnly bool
@@ -235,10 +235,10 @@ func repairTrackedServerState(s *state.State, waitTimeout time.Duration) error {
 func runDeployFlow(cfg *config.Config, s *state.State) error {
 	host := strings.TrimSpace(s.PublicIP)
 	if host == "" {
-		return wrapUserError("validate state", fmt.Errorf("state has no public_ip; run `upcloud-box provision` first"))
+		return wrapUserError("validate state", fmt.Errorf("state has no public_ip; run `upcloud-app-platform provision` first"))
 	}
 	if strings.TrimSpace(s.ServerUUID) == "" {
-		return wrapUserError("validate state", fmt.Errorf("state has no server_uuid; run `upcloud-box provision` first"))
+		return wrapUserError("validate state", fmt.Errorf("state has no server_uuid; run `upcloud-app-platform provision` first"))
 	}
 
 	mode, composePath, composeFileName, err := detectDeployMode(cfgFile)

@@ -23,7 +23,7 @@ jobs:
           TAG="${GITHUB_REF_NAME}"
           VERSION="${TAG#v}"
 
-          ASSET_NAME="upcloud-box_${TAG}_darwin_arm64.tar.gz"
+          ASSET_NAME="upcloud-app-platform_${TAG}_darwin_arm64.tar.gz"
 
           ASSET_DIGEST=""
           for attempt in $(seq 1 30); do
@@ -66,7 +66,7 @@ jobs:
       - name: Update formula
         run: |
           set -euo pipefail
-          FORMULA="homebrew-tap/Formula/upcloud-box.rb"
+          FORMULA="homebrew-tap/Formula/upcloud-app-platform.rb"
 
           ruby -i -pe 'gsub(/^  url ".*"$/, "  url \"" + ENV["DOWNLOAD_URL"] + "\"")' "$FORMULA"
           ruby -i -pe 'gsub(/^  sha256 ".*"$/, "  sha256 \"" + ENV["SHA256"] + "\"")' "$FORMULA"
@@ -80,7 +80,7 @@ jobs:
           set -euo pipefail
           cd homebrew-tap
 
-          BRANCH="bump/upcloud-box-${TAG}-${GITHUB_RUN_ID}"
+          BRANCH="bump/upcloud-app-platform-${TAG}-${GITHUB_RUN_ID}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
@@ -91,12 +91,12 @@ jobs:
             exit 0
           fi
 
-          git add Formula/upcloud-box.rb
-          git commit -m "chore: bump upcloud-box to ${TAG}"
+          git add Formula/upcloud-app-platform.rb
+          git commit -m "chore: bump upcloud-app-platform to ${TAG}"
           git push -u origin "$BRANCH"
 
           gh pr create \
-            --title "chore: bump upcloud-box to ${TAG}" \
+            --title "chore: bump upcloud-app-platform to ${TAG}" \
             --body "Automated formula update for ${TAG}.\n\n- Version: ${VERSION}\n- URL: ${DOWNLOAD_URL}\n- SHA256: ${SHA256}" \
             --base main \
             --head "$BRANCH"

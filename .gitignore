@@ -10,11 +10,11 @@ devenv.local.yaml
 .pre-commit-config.yaml
 
 # build artifacts
-upcloud-box
+upcloud-app-platform
 
 # local runtime files
-.upcloud-box.state.json
-upcloud-box.yaml
+.upcloud-app-platform.state.json
+upcloud-app-platform.yaml
 
 # local secrets
 .env.prod

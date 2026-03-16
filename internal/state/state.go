@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-const DefaultPath = ".upcloud-box.state.json"
+const DefaultPath = ".upcloud-app-platform.state.json"
 
 type State struct {
 	ServerUUID          string `json:"server_uuid"`

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ikox01/upcloud-box/internal/health"
+	"github.com/suruaku/upcloud-app-platform/internal/health"
 )
 
 type ComposeRequest struct {

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	sshrunner "github.com/ikox01/upcloud-box/internal/ssh"
+	sshrunner "github.com/suruaku/upcloud-app-platform/internal/ssh"
 )
 
 type HTTPCheckRequest struct {

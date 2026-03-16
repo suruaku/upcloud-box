@@ -8,9 +8,9 @@ var verbose bool
 var appVersion = "dev"
 
 var rootCmd = &cobra.Command{
-	Use:   "upcloud-box",
-	Short: "Provision and deploy a secure Docker host on UpCloud",
-	Long:  "upcloud-box provisions a hardened Docker host on UpCloud and deploys a single container workload.",
+	Use:   "upcloud-app-platform",
+	Short: "Deploy and operate apps on UpCloud PaaS",
+	Long:  "upcloud-app-platform is a PaaS-oriented CLI that provisions app infrastructure on UpCloud and deploys web or mobile backends without manual server management.",
 }
 
 func Execute() error {
@@ -19,7 +19,7 @@ func Execute() error {
 
 func init() {
 	rootCmd.Version = appVersion
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "upcloud-box.yaml", "config file path")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "upcloud-app-platform.yaml", "config file path")
 	rootCmd.PersistentFlags().BoolVar(&noSpinner, "no-spinner", false, "disable spinner progress output")
 	rootCmd.PersistentFlags().BoolVar(&verbose, "verbose", false, "enable verbose logs and detailed errors")
 }

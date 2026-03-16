@@ -9,9 +9,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/ikox01/upcloud-box/internal/infra/factory"
-	"github.com/ikox01/upcloud-box/internal/state"
 	"github.com/spf13/cobra"
+	"github.com/suruaku/upcloud-app-platform/internal/infra/factory"
+	"github.com/suruaku/upcloud-app-platform/internal/state"
 )
 
 var destroyYes bool
