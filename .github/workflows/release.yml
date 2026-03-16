@@ -5,11 +5,12 @@ on:
     tags:
       - 'v*'
 
-permissions:
-  contents: write
-
 jobs:
+  test:
+    uses: ./.github/workflows/go-ci-reusable.yml
+
   build:
+    needs: test
     runs-on: ubuntu-latest
     strategy:
       matrix:
