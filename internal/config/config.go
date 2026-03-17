@@ -59,7 +59,7 @@ func Load(path string) (*Config, error) {
 		return nil, fmt.Errorf("parse config %q: %w", path, err)
 	}
 
-	if strings.TrimSpace(cfg.Provision.Hostname) == "" {
+	if shouldDeriveHostname(cfg.Project, cfg.Provision.Hostname) {
 		cfg.Provision.Hostname = deriveHostname(cfg.Project)
 	}
 
@@ -169,6 +169,37 @@ func deriveHostname(project string) string {
 		suffix = "00000000"
 	}
 	return deriveHostnameWithSuffix(project, suffix)
+}
+
+func shouldDeriveHostname(project, hostname string) bool {
+	hostname = strings.TrimSpace(hostname)
+	if hostname == "" {
+		return true
+	}
+
+	return hostname == deriveLegacyHostname(project)
+}
+
+func deriveLegacyHostname(project string) string {
+	base := strings.ToLower(strings.TrimSpace(project))
+	base = invalidHostnameCharPattern.ReplaceAllString(base, "-")
+	base = strings.Trim(base, "-")
+	for strings.Contains(base, "--") {
+		base = strings.ReplaceAll(base, "--", "-")
+	}
+	if base == "" {
+		base = "app"
+	}
+
+	hostname := base + "-prod"
+	if len(hostname) > 63 {
+		hostname = strings.Trim(hostname[:63], "-")
+	}
+	if hostname == "" {
+		return "app-prod"
+	}
+
+	return hostname
 }
 
 func deriveHostnameWithSuffix(project, suffix string) string {
