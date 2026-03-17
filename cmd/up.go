@@ -282,7 +282,6 @@ func runDeployFlow(cfg *config.Config, s *state.State) error {
 			return wrapUserError("deploy compose stack", err)
 		}
 
-		s.LastSuccessfulImage = ""
 		s.MarkDeployAt(time.Now())
 		s.LastDeployMode = string(deployModeCompose)
 		if err := state.Save(state.DefaultPath, *s); err != nil {
@@ -310,7 +309,7 @@ func runDeployFlow(cfg *config.Config, s *state.State) error {
 		return wrapUserError("deploy container", err)
 	}
 
-	s.MarkDeploy(cfg.Deploy.Image, time.Now())
+	s.MarkDeploy(time.Now())
 	s.LastDeployMode = string(deployModeSingle)
 	if err := state.Save(state.DefaultPath, *s); err != nil {
 		return wrapUserError("save state", err)

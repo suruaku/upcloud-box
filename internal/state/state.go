@@ -12,11 +12,10 @@ import (
 const DefaultPath = ".upcloud-app-platform.state.json"
 
 type State struct {
-	ServerUUID          string `json:"server_uuid"`
-	PublicIP            string `json:"public_ip"`
-	LastSuccessfulImage string `json:"last_successful_image"`
-	LastDeployedAt      string `json:"last_deployed_at"`
-	LastDeployMode      string `json:"last_deploy_mode"`
+	ServerUUID     string `json:"server_uuid"`
+	PublicIP       string `json:"public_ip"`
+	LastDeployedAt string `json:"last_deployed_at"`
+	LastDeployMode string `json:"last_deploy_mode"`
 }
 
 func New() State {
@@ -59,8 +58,7 @@ func Save(path string, s State) error {
 	return nil
 }
 
-func (s *State) MarkDeploy(image string, t time.Time) {
-	s.LastSuccessfulImage = image
+func (s *State) MarkDeploy(t time.Time) {
 	s.LastDeployedAt = t.UTC().Format(time.RFC3339)
 }
 

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -80,6 +81,7 @@ func writeConfig(path string, force bool, cloudInitPath string) error {
 	}
 
 	defaultCfg := config.Default()
+	defaultCfg.Project = defaultProjectName()
 	defaultCfg.Provision.CloudInitPath = strings.TrimSpace(cloudInitPath)
 	data, err := config.MarshalYAML(defaultCfg)
 	if err != nil {
@@ -91,6 +93,28 @@ func writeConfig(path string, force bool, cloudInitPath string) error {
 	}
 
 	return nil
+}
+
+func defaultProjectName() string {
+	root, err := gitTopLevelDir()
+	if err == nil && strings.TrimSpace(root) != "" {
+		return remoteProjectName(filepath.Base(strings.TrimSpace(root)))
+	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "app"
+	}
+
+	return remoteProjectName(filepath.Base(cwd))
+}
+
+func gitTopLevelDir() (string, error) {
+	out, err := exec.Command("git", "rev-parse", "--show-toplevel").Output()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(out)), nil
 }
 
 func writeCloudInit(path, user string, sshKeys []string, force bool) error {

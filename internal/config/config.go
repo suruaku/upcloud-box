@@ -1,6 +1,8 @@
 package config
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
@@ -162,6 +164,14 @@ func EnsureParentDir(path string) error {
 var invalidHostnameCharPattern = regexp.MustCompile(`[^a-z0-9-]+`)
 
 func deriveHostname(project string) string {
+	suffix, err := randomHex(4)
+	if err != nil {
+		suffix = "00000000"
+	}
+	return deriveHostnameWithSuffix(project, suffix)
+}
+
+func deriveHostnameWithSuffix(project, suffix string) string {
 	base := strings.ToLower(strings.TrimSpace(project))
 	base = invalidHostnameCharPattern.ReplaceAllString(base, "-")
 	base = strings.Trim(base, "-")
@@ -172,13 +182,41 @@ func deriveHostname(project string) string {
 		base = "app"
 	}
 
-	hostname := base + "-prod"
+	suffix = strings.ToLower(strings.TrimSpace(suffix))
+	suffix = invalidHostnameCharPattern.ReplaceAllString(suffix, "")
+	if suffix == "" {
+		suffix = "00000000"
+	}
+
+	maxBaseLen := 63 - (len(suffix) + 1)
+	if maxBaseLen < 1 {
+		maxBaseLen = 1
+	}
+	if len(base) > maxBaseLen {
+		base = strings.Trim(base[:maxBaseLen], "-")
+		if base == "" {
+			base = "app"
+		}
+	}
+
+	hostname := base + "-" + suffix
 	if len(hostname) > 63 {
 		hostname = hostname[:63]
 		hostname = strings.Trim(hostname, "-")
 	}
 	if hostname == "" {
-		return "app-prod"
+		return "app-00000000"
 	}
 	return hostname
+}
+
+func randomHex(n int) (string, error) {
+	if n <= 0 {
+		return "", nil
+	}
+	b := make([]byte, n)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b), nil
 }

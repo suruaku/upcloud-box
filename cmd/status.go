@@ -40,7 +40,6 @@ var statusCmd = &cobra.Command{
 		if statsForNerds {
 			fmt.Printf("server_uuid: %s\n", renderOrDash(s.ServerUUID))
 			fmt.Printf("public_ip: %s\n", renderOrDash(s.PublicIP))
-			fmt.Printf("last_successful_image: %s\n", renderOrDash(s.LastSuccessfulImage))
 			fmt.Printf("last_deployed_at: %s\n", renderOrDash(s.LastDeployedAt))
 			fmt.Printf("last_deploy_mode: %s\n", renderOrDash(s.LastDeployMode))
 		} else {

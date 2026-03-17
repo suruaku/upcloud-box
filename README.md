@@ -38,6 +38,11 @@ upcloud-app-platform up
 
 On first run, `upcloud-app-platform up` bootstraps `upcloud-app-platform.yaml` automatically, then continues provisioning/deploy.
 
+Default naming behavior:
+
+- `project` defaults to the current Git repository directory name (fallback: current directory name).
+- `provision.hostname` defaults to `<project>-<short-uuid>` (8 hex chars), for example `my-app-1a2b3c4d`.
+
 SSH key behavior:
 
 - If `ssh.private_key_path` is empty, upcloud-app-platform auto-detects `~/.ssh/id_ed25519`, then `~/.ssh/id_ecdsa`, then `~/.ssh/id_rsa`.
