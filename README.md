@@ -74,7 +74,7 @@ Core commands:
 - `upcloud-app-platform provision` - create server and persist infra state
 - `upcloud-app-platform deploy` - deploy your Docker stack (or single-container fallback)
 - `upcloud-app-platform up` - provision if needed, then deploy your stack
-- `upcloud-app-platform status` - local state + remote infra/app summary
+- `upcloud-app-platform status` - friendly state, infra, runtime, and app summary
 - `upcloud-app-platform destroy` - remove the server and clean state
 
 Useful flags:
@@ -82,6 +82,7 @@ Useful flags:
 - `--config <path>`: custom config path (default: `upcloud-app-platform.yaml`)
 - `--verbose`: show detailed error output and verbose logs
 - `--no-spinner`: disable spinner progress output
+- `status --stats-for-nerds`: include detailed diagnostics (raw infra fields, pricing source, load avg, disk, container runtime stats)
 
 ## Troubleshooting
 

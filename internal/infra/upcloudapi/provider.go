@@ -98,6 +98,50 @@ func (p *Provider) WaitReady(ctx context.Context, serverID string, timeout time.
 	return toServerInfo(details), nil
 }
 
+func (p *Provider) EstimateServerCost(ctx context.Context, zone, plan string) (infra.ServerCostEstimate, error) {
+	zone = strings.TrimSpace(zone)
+	plan = strings.TrimSpace(plan)
+	if zone == "" {
+		return infra.ServerCostEstimate{}, fmt.Errorf("zone is required")
+	}
+	if plan == "" {
+		return infra.ServerCostEstimate{}, fmt.Errorf("plan is required")
+	}
+
+	pricesByZone, err := p.svc.GetPricesByZone(ctx)
+	if err != nil {
+		return infra.ServerCostEstimate{}, fmt.Errorf("get prices by zone: %w", err)
+	}
+
+	zonePrices, ok := (*pricesByZone)[zone]
+	if !ok {
+		return infra.ServerCostEstimate{}, fmt.Errorf("no pricing data for zone %q", zone)
+	}
+
+	planCandidates := buildPlanPriceKeys(plan)
+	for _, key := range planCandidates {
+		price, found := zonePrices[key]
+		if !found {
+			continue
+		}
+
+		monthly := price.Price
+		hourly := monthly / priceCentsDivisor
+		if hourly < 0 {
+			hourly = 0
+		}
+
+		return infra.ServerCostEstimate{
+			Currency: "EUR",
+			Monthly:  hourly * billedHoursPerMonth,
+			Hourly:   hourly,
+			Source:   key,
+		}, nil
+	}
+
+	return infra.ServerCostEstimate{}, fmt.Errorf("no pricing data for plan %q in zone %q", plan, zone)
+}
+
 func (p *Provider) Destroy(ctx context.Context, serverID string) error {
 	if err := p.svc.DeleteServer(ctx, &request.DeleteServerRequest{UUID: serverID}); err != nil {
 		if !isDeleteWhileStartedError(err) {
@@ -244,9 +288,13 @@ func zoneMatchesTemplate(requestedZone, templateZone string) bool {
 
 func toServerInfo(details *upcloud.ServerDetails) infra.ServerInfo {
 	info := infra.ServerInfo{
-		ServerID: details.UUID,
-		Hostname: details.Hostname,
-		State:    details.State,
+		ServerID:  details.UUID,
+		Hostname:  details.Hostname,
+		State:     details.State,
+		Plan:      strings.TrimSpace(details.Plan),
+		Zone:      strings.TrimSpace(details.Zone),
+		CoreCount: details.CoreNumber,
+		MemoryMB:  details.MemoryAmount,
 	}
 
 	for _, ip := range details.IPAddresses {
@@ -258,3 +306,40 @@ func toServerInfo(details *upcloud.ServerDetails) infra.ServerInfo {
 
 	return info
 }
+
+func buildPlanPriceKeys(plan string) []string {
+	plan = strings.TrimSpace(plan)
+	if plan == "" {
+		return nil
+	}
+
+	candidates := make([]string, 0, 3)
+	candidates = append(candidates, "server_plan_"+plan)
+
+	lowerPlan := strings.ToLower(plan)
+	if lowerPlan != plan {
+		candidates = append(candidates, "server_plan_"+lowerPlan)
+	}
+
+	normalizedPlan := strings.ReplaceAll(lowerPlan, "xcpu", "xCPU")
+	if normalizedPlan != plan && normalizedPlan != lowerPlan {
+		candidates = append(candidates, "server_plan_"+normalizedPlan)
+	}
+
+	unique := make([]string, 0, len(candidates))
+	seen := make(map[string]struct{}, len(candidates))
+	for _, v := range candidates {
+		if _, ok := seen[v]; ok {
+			continue
+		}
+		seen[v] = struct{}{}
+		unique = append(unique, v)
+	}
+
+	return unique
+}
+
+const (
+	priceCentsDivisor   = 100.0
+	billedHoursPerMonth = 24.0 * 28.0
+)
